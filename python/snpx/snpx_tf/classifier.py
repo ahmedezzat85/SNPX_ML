@@ -93,8 +93,8 @@ class SNPXTensorflowClassifier(SNPXModel):
                                                      self.summary_op, self.global_step_op])
                 self.tb_writer.add_summary(s, step)
                 self.tb_writer.flush()
-                if (step - last_step) >= self.log_batch_freq:
-                    elapsed = self.tick() - last_log_tick
+                elapsed = self.tick() - last_log_tick
+                if elapsed >= self.log_freq:
                     freq = ((step - last_step)  * self.batch_size) / elapsed
                     last_step = step
                     last_log_tick  = self.tick()

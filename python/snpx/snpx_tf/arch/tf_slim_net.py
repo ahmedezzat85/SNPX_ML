@@ -4,7 +4,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 from tensorflow.contrib.layers import (
-    flatten, separable_conv2d, batch_norm, conv2d, fully_connected
+    flatten, separable_conv2d, batch_norm, conv2d, fully_connected, dropout
 )
 TF_ACT_FN = {'relu': tf.nn.relu}
 

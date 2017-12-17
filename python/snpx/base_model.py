@@ -103,7 +103,8 @@ class SNPXModel(object):
               l2_reg = 0, 
               lr_decay = 0.9, 
               lr_decay_step = 3,
-              log_every_n_batches = 10):
+              log_every_n_batches = 10,
+              log_every_n_sec=5):
         """ Train the network.
         """
         # Create a logger instance
@@ -124,7 +125,7 @@ class SNPXModel(object):
         with open(os.path.join(self.log_dir, self.model_name + '-hp.json'), 'w') as fp:
             json.dump(hp_dict, fp, indent=0)
 
-        self.log_batch_freq = log_every_n_batches
+        self.log_freq   = log_every_n_sec
         self.batch_size = batch_size
 
         train_start_time  = datetime.now()
