@@ -1,10 +1,9 @@
 from __future__ import absolute_import
-from .snpx_tf.classifier import SNPXTensorflowClassifier
-from .snpx_mxnet.classifier import SNPXMxnetClassifier
 
 # Get the classifier
 def get_classifier(args):
     if args.backend.lower() == 'tensorflow' or args.backend.lower() == 'tf':
+        from .snpx_tf.classifier import SNPXTensorflowClassifier
         snpx_classifier = SNPXTensorflowClassifier(     model_name     = args.model_name,
                                                         dataset_name   = args.target_dataset,
                                                         data_format    = args.data_format,
@@ -14,6 +13,7 @@ def get_classifier(args):
                                                         model_bin_root = args.bin_dir
                                                         )
     elif args.backend.lower() == 'mxnet':
+        from .snpx_mxnet.classifier import SNPXMxnetClassifier
         snpx_classifier = SNPXMxnetClassifier(          model_name     = args.model_name,
                                                         dataset_name   = args.target_dataset,
                                                         data_format    = args.data_format,

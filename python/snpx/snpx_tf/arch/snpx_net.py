@@ -44,5 +44,6 @@ def snpx_net_create(num_classes,
     net = TFNet(input_data, data_format, train=is_training)
     net = model_B(net)
     net.out_tensor = dropout(net.out_tensor)
-    net.convolution(num_classes, (1,1), act_fn=None, name='Conv_Softmax')
+    net.flatten()
+    net.fully_connected(num_classes, name='FC_Softmax')
     return net.out_tensor
