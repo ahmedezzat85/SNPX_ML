@@ -1,6 +1,6 @@
 @echo off
 
-set PYTHON=python3
+set PYTHON=python
 set BE=mxnet
 set DATASET=CIFAR-10
 set NUM_EPOCH=200

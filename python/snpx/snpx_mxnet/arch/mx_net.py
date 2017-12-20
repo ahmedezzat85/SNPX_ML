@@ -19,7 +19,7 @@ class MxNet(object):
         data = self.net_out if inputs is None else inputs
         self.net_out = mx.sym.BatchNorm(data=data)
         if act_fn is not None:
-            self.net_out = mx.sym.Activation(data=self.net_out, act_type=act)
+            self.net_out = mx.sym.Activation(data=self.net_out, act_type=act_fn)
         return self.net_out
 
     def convolution(self, num_filters, kernel, stride=(1,1), pad='same', act_fn='relu',

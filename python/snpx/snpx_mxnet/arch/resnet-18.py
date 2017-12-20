@@ -57,7 +57,7 @@ def resnet_18(net, num_blocks=3, dw_conv=False):
                     act='relu', dw_conv=dw_conv, name='stage2')
     resnet_unit(net, num_blocks=num_blocks, num_filters=64, kernel=(3,3), stride=(2,2), 
                     act='relu', dw_conv=dw_conv, name='stage3')
-    net.batch_norm(act='relu', name='final_bn')
+    net.batch_norm(act_fn='relu', name='final_bn')
     net.global_pool('avg', name="global_pool")
     return net
 
