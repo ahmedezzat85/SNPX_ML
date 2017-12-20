@@ -28,16 +28,8 @@ class SNPXMxnetClassifier(SNPXModel):
                 extend_dataset=False,
                 logs_root=None,
                 model_bin_root=None):
-        super().__init__(model_name, dataset_name, "snpx_mxnet", logs_root, model_bin_root)
+        super(SNPXMxnetClassifier, self).__init__(model_name, dataset_name, "snpx_mxnet", logs_root, model_bin_root)
         self.symbol = None
-
-    def log_stats(self, name, value):
-        """
-        """
-        sc_name = self.model_name+"/" + name
-        n       = len(value)
-        # for i in range(n):
-        #     self.tb_writer.add_scalar(sc_name, value[i], i)
 
     def viz_net_graph(self):
         """
@@ -91,9 +83,6 @@ class SNPXMxnetClassifier(SNPXModel):
                       batch_end_callback=self.batch_cb, 
                       epoch_end_callback=chkpt_cb)
         
-        # Visualize learning
-        self.log_stats("Training-Accuracy", self.train_acc)
-        self.log_stats("Validation-Accuracy", self.val_acc)
         self.val_cb(None)
 
         # Save the model with the best validation accuracy

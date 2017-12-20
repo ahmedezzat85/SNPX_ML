@@ -3,7 +3,48 @@ from __future__ import absolute_import
 import mxnet as mx
 from time import time
 import logging
-import tensorflow as tf
+try:
+    import tensorflow as tf
+    class TensorboardWriter(object):
+        def __init__(self, log_dir):
+            self.tb_writer = tf.summary.FileWriter(log_dir)
+
+        def write_scalar(self, name, val, idx):
+            # Write to Tensorboard
+            acc_summ = tf.summary.Summary()
+            summ_val = acc_summ.value.add(simple_value=value, tag="Validation-Accuracy")
+            self.tb_writer.add_summary(acc_summ, idx)
+            # Flush Tensorboard Writer
+            self.tb_writer.flush()
+
+        def close(self):
+            self.tb_writer.close()
+
+except ImportError:
+    try:
+        import tensorboard
+        class TensorboardWriter(object):
+            def __init__(self, log_dir):
+                self.tb_writer  = tensorboard.SummaryWriter(log_dir)
+
+            def write_scalar(self, name, val, idx):
+                self.tb_writer.add_scalar(name, val, idx)
+                self.tb_writer.flush()
+
+            def close(self):
+                self.tb_writer.close()
+
+    except ImportError:
+        class TensorboardWriter(object):
+            def __init__(self, log_dir):
+                pass
+
+            def write_scalar(self, name, val, idx):
+                pass
+
+            def close(self):
+                pass
+
 
 class BatchEndCB(object):
     """Calculate and log training speed periodically.
@@ -57,7 +98,7 @@ class EpochValCB(object):
         self.val_acc    = val_acc
         self.optmz      = optmz
         self.logger     = logger
-        self.tb_writer  = tf.summary.FileWriter(log_dir)
+        self.tb_writer  = TensorboardWriter(log_dir)
             
     def __call__(self, param):
         if param is None:
@@ -69,12 +110,6 @@ class EpochValCB(object):
         name, value  = name_value[0]
         value = value * 100
         self.val_acc.append(value)
-        # Write to Tensorboard
-        acc_summ = tf.summary.Summary()
-        summ_val = acc_summ.value.add(simple_value=value, tag="Validation-Accuracy")
-        self.tb_writer.add_summary(acc_summ, param.epoch)
-        # Flush Tensorboard Writer
-        self.tb_writer.flush()
-        
+        self.tb_writer.write_scalar(name, val, param.epoch)
 
 
