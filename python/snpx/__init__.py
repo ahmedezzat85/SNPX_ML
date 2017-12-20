@@ -17,7 +17,7 @@ def get_classifier(args):
         snpx_classifier = SNPXMxnetClassifier(          model_name     = args.model_name,
                                                         dataset_name   = args.target_dataset,
                                                         use_fp16       = bool(args.use_fp16),
-                                                        data_aug       = args.data_aug,
+                                                        data_aug       = bool(args.data_aug),
                                                         logs_root      = args.logs_dir,
                                                         model_bin_root = args.bin_dir
                                                         )

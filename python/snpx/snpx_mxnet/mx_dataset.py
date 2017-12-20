@@ -38,7 +38,7 @@ DATASETS = {'CIFAR-10': {'type'      : 'image_classification', 'num_classes': 10
 class MxDataset(object):
     """ 
     """
-    def __init__(self, dataset_name, batch_size, for_training=True, dtype=np.float32):
+    def __init__(self, dataset_name, batch_size, for_training=True, dtype=np.float32, data_aug=False):
         if dataset_name not in DATASETS:
             raise ValueError('Dataset <%s> does not exist', dataset_name)
         
@@ -50,7 +50,7 @@ class MxDataset(object):
         self.num_classes = dataset['num_classes']
         self.data_shape  = dataset['shape']
         self.mx_train_iter, self.mx_eval_iter = \
-            mx_create_data_iterator(batch_size, train_file, val_file, self.data_shape, dtype)            
+            mx_create_data_iterator(batch_size, train_file, val_file, self.data_shape, dtype, data_aug)            
 
 ##########################################################
 

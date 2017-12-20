@@ -24,12 +24,13 @@ class SNPXMxnetClassifier(SNPXModel):
                 dataset_name, 
                 devices=['CPU'], 
                 use_fp16=False, 
-                data_aug=[], 
+                data_aug=False, 
                 extend_dataset=False,
                 logs_root=None,
                 model_bin_root=None):
         super(SNPXMxnetClassifier, self).__init__(model_name, dataset_name, "snpx_mxnet", logs_root, model_bin_root)
         self.symbol = None
+        self.data_aug = data_aug
 
     def viz_net_graph(self):
         """
@@ -42,6 +43,7 @@ class SNPXMxnetClassifier(SNPXModel):
 
     def train_model(self, num_epoch):
         """ """
+        if self.data_aug is True: self.logger.info('Using Data Augmentation')
         # Initialize the Optimizer
         if(self.hp.optimizer.lower() == 'sgd'):
             self.optmz = mx.optimizer.SGD(learning_rate=self.hp.lr, 
@@ -58,7 +60,7 @@ class SNPXMxnetClassifier(SNPXModel):
         self.val_cb         = EpochValCB(self.optmz, self.val_acc, self.log_dir, self.logger)
 
         # Load dataset
-        self.dataset = MxDataset(self.dataset_name, self.batch_size)
+        self.dataset = MxDataset(self.dataset_name, self.batch_size, data_aug=self.data_aug)
         self.symbol  = self.model_fn(self.dataset.num_classes)
 
         # self.tb_writer  = tensorboard.SummaryWriter(self.log_dir)

@@ -9,6 +9,7 @@ set FP16=0
 set FMT=NCHW
 set model=resnet-18
 set LR=0.001
+set DATA_AUG=1
 
 %PYTHON% snpx_train_classifier.py ^
 		--backend %BE% ^
@@ -18,4 +19,5 @@ set LR=0.001
 		--num-epoch %NUM_EPOCH% ^
 		--batch-size %BATCH_SZ% ^
 		--use-fp16 %FP16%       ^
-		--lr %LR%
+		--lr %LR%  ^
+		--data-aug %DATA_AUG%

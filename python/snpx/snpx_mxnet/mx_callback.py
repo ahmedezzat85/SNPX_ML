@@ -12,7 +12,7 @@ try:
         def write_scalar(self, name, val, idx):
             # Write to Tensorboard
             acc_summ = tf.summary.Summary()
-            summ_val = acc_summ.value.add(simple_value=value, tag="Validation-Accuracy")
+            summ_val = acc_summ.value.add(simple_value=val, tag="Validation-Accuracy")
             self.tb_writer.add_summary(acc_summ, idx)
             # Flush Tensorboard Writer
             self.tb_writer.flush()
@@ -110,6 +110,6 @@ class EpochValCB(object):
         name, value  = name_value[0]
         value = value * 100
         self.val_acc.append(value)
-        self.tb_writer.write_scalar(name, val, param.epoch)
+        self.tb_writer.write_scalar(name, value, param.epoch)
 
 
