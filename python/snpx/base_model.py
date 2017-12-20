@@ -57,13 +57,17 @@ class SNPXModel(object):
 
         # Create the log directories
         date_time = datetime.now().strftime("%Y%m%d-%H.%M")
-        self.log_dir = os.path.join(logs_root, backend, dataset_name, model_name, 'run_'+date_time)
+        self.log_dir = os.path.join(logs_root, backend, dataset_name, model_name)#, 'run_'+date_time)
         snpx_create_dir(self.log_dir)
         self.chkpt_prfx = os.path.join(self.log_dir, "chkpt") + self.model_name
 
         self.model_dir = os.path.join(model_bin_root, backend, dataset_name, model_name)
         snpx_create_dir(self.model_dir)
         self.model_prfx = os.path.join(self.model_dir, model_name)
+
+        deploy_dir = os.path.join(self.model_dir, 'deploy')
+        snpx_create_dir(deploy_dir)
+        self.deploy_prfx = os.path.join(deploy_dir, model_name)
 
         # Initialize the tick
         self.base_tick  = time()
@@ -97,14 +101,15 @@ class SNPXModel(object):
             
     def train(self, 
               num_epoch, 
-              batch_size, 
+              batch_size,
+              start_epoch = 0,
               optmz  = 'Adam', 
               lr     = 1e-3, 
               l2_reg = 0, 
               lr_decay = 0.9, 
               lr_decay_step = 3,
               log_every_n_batches = 10,
-              log_every_n_sec=5):
+              log_every_n_sec=1):
         """ Train the network.
         """
         # Create a logger instance
@@ -131,7 +136,10 @@ class SNPXModel(object):
         train_start_time  = datetime.now()
         self.logger.info("Training Started at  : " + train_start_time.strftime("%Y-%m-%d %H:%M:%S"))
         # Perform training in backend
-        self.train_model(num_epoch)
+        if start_epoch == 0:
+            self.train_model(num_epoch)
+        else:
+            self.resume_training(start_epoch, num_epoch)
         self.logger.info("Training Finished at : " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         self.logger.info("Total Training Time  : " + str(datetime.now() - train_start_time))
 
@@ -146,13 +154,17 @@ class SNPXModel(object):
         self.logger.info("Validation Accuracy = %.2F%%", acc)
         self.logger.info("Validation Time  : " + str(datetime.now() - start_time))
         
+    def deploy(self, img_size, num_classes):
+        """ """
+        raise NotImplementedError()
+        
     def train_model(self, num_epoch):
         raise NotImplementedError()
 
     def evaluate_model(self):
         raise NotImplementedError()
 
-    def resume_training(self, n_epoch):
+    def resume_training(self, start_epoch, num_epoch):
         """
         """
         raise NotImplementedError()

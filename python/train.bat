@@ -1,14 +1,14 @@
 @echo off
 
 set PYTHON=python3
-set BE=tensorflow
+set BE=mxnet
 set DATASET=CIFAR-10
 set NUM_EPOCH=200
-set BATCH_SZ=100
-set L2_REG=0.00001
+set BATCH_SZ=200
 set FP16=0
-set FMT=NHWC
-set model=snpx_net
+set FMT=NCHW
+set model=resnet-18
+set LR=0.001
 
 %PYTHON% snpx_train_classifier.py ^
 		--backend %BE% ^
@@ -17,4 +17,5 @@ set model=snpx_net
 		--data-format %FMT% ^
 		--num-epoch %NUM_EPOCH% ^
 		--batch-size %BATCH_SZ% ^
-		--use-fp16 %FP16%
+		--use-fp16 %FP16%       ^
+		--lr %LR%

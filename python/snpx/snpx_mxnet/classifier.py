@@ -21,15 +21,14 @@ class SNPXMxnetClassifier(SNPXModel):
     """
     def __init__(self, 
                 model_name, 
-                dataset, 
+                dataset_name, 
                 devices=['CPU'], 
                 use_fp16=False, 
                 data_aug=[], 
                 extend_dataset=False,
                 logs_root=None,
                 model_bin_root=None):
-        super(SNPXClassifier, self).__init__(model_name, dataset, "snpx_mxnet",
-                                             logs_root, model_bin_root)
+        super().__init__(model_name, dataset_name, "snpx_mxnet", logs_root, model_bin_root)
         self.symbol = None
 
     def log_stats(self, name, value):
@@ -37,8 +36,8 @@ class SNPXMxnetClassifier(SNPXModel):
         """
         sc_name = self.model_name+"/" + name
         n       = len(value)
-        for i in range(n):
-            self.tb_writer.add_scalar(sc_name, value[i], i)
+        # for i in range(n):
+        #     self.tb_writer.add_scalar(sc_name, value[i], i)
 
     def viz_net_graph(self):
         """
@@ -47,30 +46,30 @@ class SNPXMxnetClassifier(SNPXModel):
         g = mx.viz.plot_network(symbol=self.symbol, title=self.model_name, shape={'data': shape}, save_format='png')
         g.render(filename=self.model_name, directory=self.log_dir)
         img = misc.imread(os.path.join(self.log_dir, self.model_name+".png"))
-        self.tb_writer.add_image(self.model_name, img)
+        # self.tb_writer.add_image(self.model_name, img)
 
     def train_model(self, num_epoch):
         """ """
         # Initialize the Optimizer
-        if(self.hp['optimizer'].lower() == 'sgd'):
-            self.optmz = mx.optimizer.SGD(learning_rate=self.hp['learning_rate'], 
-                                          rescale_grad=(1.0/self.hp['batch_size']), momentum=0.9)
+        if(self.hp.optimizer.lower() == 'sgd'):
+            self.optmz = mx.optimizer.SGD(learning_rate=self.hp.lr, 
+                                          rescale_grad=(1.0/self.batch_size), momentum=0.9)
         else:
-            self.optmz = mx.optimizer.Adam(learning_rate=self.hp['learning_rate'], 
-                                           rescale_grad=(1.0/self.hp['batch_size']))
+            self.optmz = mx.optimizer.Adam(learning_rate=self.hp.lr, 
+                                           rescale_grad=(1.0/self.batch_size))
 
         self.init           = init=mx.initializer.Xavier(magnitude=2.34, factor_type="in")
         self.val_acc        = []
         self.train_acc      = []
-        self.batch_cb       = BatchEndCB(train_acc=self.train_acc, batch_size=self.hp['batch_size'], 
+        self.batch_cb       = BatchEndCB(train_acc=self.train_acc, batch_size=self.batch_size, 
                                          logger=self.logger)
-        self.val_cb         = EpochValCB(self.optmz, self.val_acc, self.logger)
+        self.val_cb         = EpochValCB(self.optmz, self.val_acc, self.log_dir, self.logger)
 
         # Load dataset
         self.dataset = MxDataset(self.dataset_name, self.batch_size)
-        self.symbol  = self.model_fn(self.dataset.n_class)
+        self.symbol  = self.model_fn(self.dataset.num_classes)
 
-        self.tb_writer  = tensorboard.SummaryWriter(self.log_dir)
+        # self.tb_writer  = tensorboard.SummaryWriter(self.log_dir)
         self.viz_net_graph()
 
 
@@ -95,7 +94,7 @@ class SNPXMxnetClassifier(SNPXModel):
         # Visualize learning
         self.log_stats("Training-Accuracy", self.train_acc)
         self.log_stats("Validation-Accuracy", self.val_acc)
-        self.tb_writer.close()
+        self.val_cb(None)
 
         # Save the model with the best validation accuracy
         best_epoch = self.val_acc.index(max(self.val_acc))

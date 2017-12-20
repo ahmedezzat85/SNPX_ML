@@ -31,13 +31,13 @@ class TFNet(object):
         return self.out_tensor
 
     def convolution(self, num_filters, kernel, stride=(1,1), pad='same', act_fn='relu',
-                    add_batch_norm=False, name=None):
+                    add_bn=False, name=None):
         """ """
         # Activation
         act = None
         if act_fn in TF_ACT_FN:
             act = TF_ACT_FN[act_fn]
-        if add_batch_norm == True:
+        if add_bn == True:
             conv_act = None
             bn_name = name+'_BN'
             bn_fn=batch_norm
@@ -62,7 +62,7 @@ class TFNet(object):
         return self.out_tensor
       
     def conv_dw(self, num_filters=None, kernel=(3,3), stride=(1,1), pad='same', act_fn='relu',
-                    add_batch_norm=False, name=None):
+                    add_bn=False, name=None):
         """ """
         # Activation
         dw_name = name + '_dw'
@@ -70,7 +70,7 @@ class TFNet(object):
         if act_fn in TF_ACT_FN:
             act = TF_ACT_FN[act_fn]
         
-        if add_batch_norm == True:
+        if add_bn == True:
             conv_act = None
             bn_name  = dw_name + '_BN'
             bn_fn    = batch_norm
@@ -100,7 +100,7 @@ class TFNet(object):
             self.convolution(num_filters=num_filters, 
                              kernel=(1,1),
                              act_fn=act_fn,
-                             add_batch_norm=add_batch_norm,
+                             add_bn=add_bn,
                              name=name)
         return self.out_tensor
          

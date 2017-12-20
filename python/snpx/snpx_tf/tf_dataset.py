@@ -33,13 +33,14 @@ class TFDataset(object):
         with tf.device('/cpu:0'):
             dataset = DATASETS[dataset_name]
             dataset_dir = os.path.join(SNPX_DATASET_ROOT, dataset_name) 
-            train_file  = os.path.join(dataset_dir, dataset['train_file']) if for_training else None
-            val_file    = os.path.join(dataset_dir, dataset['val_file'])
+            self.train_file  = os.path.join(dataset_dir, dataset['train_file']) if for_training else None
+            self.val_file    = os.path.join(dataset_dir, dataset['val_file'])
             
             self.num_classes = dataset['num_classes']
             self.data_shape  = dataset['shape']
             self.train_set_init_op, self.eval_set_init_op, self.iter_op = \
-                tf_create_data_iterator(batch_size, train_file, val_file, self.data_shape, dtype)
+                tf_create_data_iterator(batch_size, self.train_file, self.val_file, 
+                                        self.data_shape, dtype)
             
             if dataset['type'] == 'image_classification':
                 self.images, labels = self.iter_op

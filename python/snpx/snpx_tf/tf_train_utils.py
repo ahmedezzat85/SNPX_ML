@@ -21,7 +21,7 @@ def tf_create_data_iterator(
         feature = tf.parse_single_example(tf_record, features=_IMAGE_TFREC_STRUCTURE)
         image = tf.decode_raw(feature['image'], tf.uint8)
         image = tf.reshape(image, shape)
-        image = tf.image.resize_images(image, [64, 64])
+        # image = tf.image.resize_images(image, [64, 64])
         label = tf.cast(feature['label'], tf.int64)
         image = tf.cast(image, dtype)
         return image, label

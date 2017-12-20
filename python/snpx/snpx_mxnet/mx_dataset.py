@@ -31,7 +31,7 @@ UCF101_ROOT     = os.path.join(SNPX_DATASET_ROOT, "UCF-101")
 DATASETS = {'CIFAR-10': {'type'      : 'image_classification', 'num_classes': 10, 
                          'shape'     : (3, 32, 32), 
                          'train_file': 'CIFAR-10_train.mxrec',
-                         'val_file'  : 'CIFAR-10_val.mxval'}
+                         'val_file'  : 'CIFAR-10_val.mxrec'}
         }
 
 

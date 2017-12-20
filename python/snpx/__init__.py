@@ -16,7 +16,6 @@ def get_classifier(args):
         from .snpx_mxnet.classifier import SNPXMxnetClassifier
         snpx_classifier = SNPXMxnetClassifier(          model_name     = args.model_name,
                                                         dataset_name   = args.target_dataset,
-                                                        data_format    = args.data_format,
                                                         use_fp16       = bool(args.use_fp16),
                                                         data_aug       = args.data_aug,
                                                         logs_root      = args.logs_dir,
