@@ -14,11 +14,11 @@ class MxNet(object):
         if dtype == 'float16':
             self.net_out   = mx.sym.Cast(data=self.net_out, dtype=np.float16)
 
-    def batch_norm(self, inputs=None, act=None, name=None):
+    def batch_norm(self, inputs=None, act_fn=None, name=None):
         """ """
         data = self.net_out if inputs is None else inputs
         self.net_out = mx.sym.BatchNorm(data=data)
-        if act is not None:
+        if act_fn is not None:
             self.net_out = mx.sym.Activation(data=self.net_out, act_type=act)
         return self.net_out
 

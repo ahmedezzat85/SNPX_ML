@@ -25,7 +25,7 @@ def _resnet_block_dw(net, num_filters, kernel, stride=(1,1), act='relu', conv_1x
 def _resnet_block(net, num_filters, kernel, stride=(1,1), act='relu', conv_1x1=0, name=None):
     """ """
     shortcut  = net.net_out
-    bn_out    = net.batch_norm(act=act, name=name+'_bn')
+    bn_out    = net.batch_norm(act_fn=act, name=name+'_bn')
     if conv_1x1:
         shortcut = net.convolution(inputs=bn_out, num_filters=num_filters, kernel=(1,1), 
                                     stride=stride, pad='valid', no_bias=True, act_fn='',
@@ -49,13 +49,13 @@ def resnet_unit(net, num_blocks, num_filters, kernel, stride=(1,1), act='relu', 
         for i in (1, num_blocks):
             _resnet_block_dw(net, num_filters, kernel, stride=(1,1), act=act, name=name+'_block'+str(i))
 
-def resnet_18(net, dw_conv=False):
-    net.convolution(16, (3,3), stride=(1,1), name='Conv0')
-    resnet_unit(net, num_blocks=2, num_filters=16, kernel=(3,3), stride=(1,1), 
+def resnet_18(net, num_blocks=3, dw_conv=False):
+    net.convolution(16, (3,3), stride=(1,1), name='Conv0', act_fn='')
+    resnet_unit(net, num_blocks=num_blocks, num_filters=16, kernel=(3,3), stride=(1,1), 
                     act='relu', dw_conv=dw_conv, name='stage1')
-    resnet_unit(net, num_blocks=2, num_filters=32, kernel=(3,3), stride=(2,2), 
+    resnet_unit(net, num_blocks=num_blocks, num_filters=32, kernel=(3,3), stride=(2,2), 
                     act='relu', dw_conv=dw_conv, name='stage2')
-    resnet_unit(net, num_blocks=2, num_filters=64, kernel=(3,3), stride=(2,2), 
+    resnet_unit(net, num_blocks=num_blocks, num_filters=64, kernel=(3,3), stride=(2,2), 
                     act='relu', dw_conv=dw_conv, name='stage3')
     net.batch_norm(act='relu', name='final_bn')
     net.global_pool('avg', name="global_pool")
@@ -65,8 +65,8 @@ def snpx_net_create(num_classes,
                     dtype=np.float32,
                     is_training=True):
     """ """
-    # net = MxNet(dtype, is_training)
-    # net = resnet_18(net, dw_conv=False)
-    # net.Softmax(num_classes)
-    # return net.net_out
-    return get_symbol(num_classes, 20, "3, 32, 32")
+    net = MxNet(dtype, is_training)
+    net = resnet_18(net)
+    net.Softmax(num_classes)
+    return net.net_out
+    # return get_symbol(num_classes, 20, "3, 32, 32")

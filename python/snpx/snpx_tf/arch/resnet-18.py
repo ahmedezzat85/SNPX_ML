@@ -35,7 +35,7 @@ def _resnet_block(net, num_filters, kernel, stride=(1,1), act='relu', conv_1x1=0
     net.convolution(num_filters=num_filters, kernel=kernel, stride=(1,1),
                         act_fn='', name=name+'_conv2')
 
-    net.net_out = shortcut + net.net_out
+    net.net_out = net.net_out + shortcut
 
 def resnet_unit(net, num_blocks, num_filters, kernel, stride=(1,1), act='relu', dw_conv=False, name=None):
     """ """
@@ -48,15 +48,15 @@ def resnet_unit(net, num_blocks, num_filters, kernel, stride=(1,1), act='relu', 
         for i in (1, num_blocks):
             _resnet_block_dw(net, num_filters, kernel, stride=(1,1), act=act, name=name+'_block'+str(i))
 
-def resnet_18(net, dw_conv=False):
-    net.convolution(16, (3,3), stride=(1,1), name='Conv0')
-    resnet_unit(net, num_blocks=3, num_filters=16, kernel=(3,3), stride=(1,1), 
+def resnet_18(net, num_blocks=3, dw_conv=False):
+    net.convolution(16, (3,3), stride=(1,1), name='Conv0', act_fn='')
+    resnet_unit(net, num_blocks=num_blocks, num_filters=16, kernel=(3,3), stride=(1,1), 
                     act='relu', dw_conv=dw_conv, name='stage1')
-    resnet_unit(net, num_blocks=3, num_filters=32, kernel=(3,3), stride=(2,2), 
+    resnet_unit(net, num_blocks=num_blocks, num_filters=32, kernel=(3,3), stride=(2,2), 
                     act='relu', dw_conv=dw_conv, name='stage2')
-    resnet_unit(net, num_blocks=3, num_filters=64, kernel=(3,3), stride=(2,2), 
+    resnet_unit(net, num_blocks=num_blocks, num_filters=64, kernel=(3,3), stride=(2,2), 
                     act='relu', dw_conv=dw_conv, name='stage3')
-    net.batch_norm(act_fn='relu', name='final_bn')
+    net.batch_norm(act='relu', name='final_bn')
     net.pooling('avg', (8,8), name="global_pool")
     return net
 
