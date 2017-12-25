@@ -131,3 +131,15 @@ class TFNet(object):
                                   kernel_initializer=self.kernel_init, trainable=self.trainable,
                                   kernel_regularizer=self.regulaizer, name=name)
         return net_out
+
+    def Softmax(self, data, num_classes, fc=True):
+        """
+        """
+        if fc == False:
+            net_out = self.convolution(data, num_classes, (1,1), pad='valid', act_fn='', 
+                                        name='Conv_Softmax')
+            net_out = self.flatten(net_out)
+        else:
+            net_out = self.fully_connected(data, num_classes, name="FC_softmax")
+        predictions = tf.nn.softmax(net_out, name='Output')
+        return net_out, predictions

@@ -51,27 +51,23 @@ class SNPXTensorflowClassifier(SNPXModel):
         self.dataset = TFDataset(self.dataset_name, self.batch_size, training, 
                                     self.dtype, self.data_format)
 
-    def _forward_prop(self, batch, num_classes, predict=False, training=True):
+    def _forward_prop(self, batch, num_classes, training=True):
         """ """
         predictions = None
-        logits = self.model_fn(num_classes, batch, self.data_format, is_training=training)
-        if predict is True:
-            predictions = tf.nn.softmax(logits, name='Predictions')
+        logits, predictions = self.model_fn(num_classes, batch, self.data_format, is_training=training)
         return logits, predictions
 
     def _create_train_op(self):
         """ """
         # Forward Propagation
-        logits, predictions = self._forward_prop(batch=self.dataset.images, 
-                                                 num_classes=self.dataset.num_classes,
-                                                 predict=True,
-                                                 training=True)
+        logits, predictions = self._forward_prop(self.dataset.images, self.dataset.num_classes, True)
         
         # Get the optimizer
-        if(self.hp.optimizer.lower() == 'sgd'):
-            opt = tf.train.MomentumOptimizer(learning_rate=self.hp.lr, momentum=0.9)
+        optmz = self.hp.optimizer.lower()
+        if optmz == 'sgd':
+            opt = tf.train.MomentumOptimizer(self.hp.lr, momentum=0.9)
         else:
-            opt = tf.train.AdamOptimizer(learning_rate=self.hp.lr)
+            opt = tf.train.AdamOptimizer(self.hp.lr)
         
         # Compute the loss and the train_op
         self.global_step_op = tf.train.get_or_create_global_step()

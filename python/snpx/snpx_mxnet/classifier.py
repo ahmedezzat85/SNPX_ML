@@ -13,7 +13,6 @@ from scipy import misc
 from .. base_model import SNPXModel
 from . mx_callback import EpochValCB, BatchEndCB
 from . mx_dataset import MxDataset
-from .. util import snpx_create_dir
 
 class SNPXMxnetClassifier(SNPXModel):
     """ Class for training a deep learning model.
@@ -37,7 +36,8 @@ class SNPXMxnetClassifier(SNPXModel):
         """
         """
         shape = (1,) + self.dataset.data_shape
-        g = mx.viz.plot_network(symbol=self.symbol, title=self.model_name, shape={'data': shape}, save_format='png')
+        g = mx.viz.plot_network(symbol=self.symbol, title=self.model_name, shape={'data': shape}, 
+                                    save_format='png')
         g.render(filename=self.model_name, directory=self.log_dir)
         img = misc.imread(os.path.join(self.log_dir, self.model_name+".png"))
 
@@ -47,8 +47,9 @@ class SNPXMxnetClassifier(SNPXModel):
 
         # Initialize the Optimizer
         opt = self.hp.optimizer.lower()
+        # print (self.hp.l2_reg)
         opt_param = (('learning_rate', self.hp.lr), ('wd', self.hp.l2_reg),)
-        if  opt == 'sgd': opt_param += ('momentum', 0.9)
+        if  opt == 'sgd': opt_param += (('momentum', 0.9),)
 
         # Load dataset
         self.dataset = MxDataset(self.dataset_name, self.batch_size, data_aug=self.data_aug)
@@ -57,9 +58,9 @@ class SNPXMxnetClassifier(SNPXModel):
             mx_module = mx.module.Module(symbol=self.symbol, context=mx.gpu(0), logger=self.logger)
             resume = False
         else:
+            resume = True
             mx_module = mx.module.Module.load(self.chkpt_prfx, begin_epoch, context=mx.gpu(0), 
                                                 logger=self.logger)
-            resume = True
 
         self.viz_net_graph()
 

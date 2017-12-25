@@ -1,6 +1,5 @@
 import tensorflow as tf
 from . tf_net import TFNet
-from .. import tf_train_utils as tf_train
 
 class Resnet(TFNet):
     """
@@ -54,12 +53,11 @@ class Resnet(TFNet):
                                         act_fn='relu', add_bn=True, name='Conv0')
 
         for k in range(num_stages):
-            self._resnet_unit(num_blocks, filters[k], kernel=(3,3), 
-                                stride=strides[k], name='stage'+str(k))
+            self._resnet_unit(num_blocks, filters[k], (3,3), strides[k], name='stage'+str(k))
 
         net_out = self.pooling(self.net_out, 'avg', (8,8), name="global_pool")
         net_out = self.flatten(net_out)
-        net_out = self.fully_connected(net_out, self.num_classes, name='FC_Softmax')
+        net_out = self.Softmax(net_out, self.num_classes)
         return net_out
 
 def snpx_net_create(num_classes, input_data, data_format="NHWC", is_training=True):
