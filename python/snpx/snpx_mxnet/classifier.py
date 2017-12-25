@@ -57,12 +57,12 @@ class SNPXMxnetClassifier(SNPXModel):
             self.symbol = self.model_fn(self.dataset.num_classes)
             mx_module = mx.module.Module(symbol=self.symbol, context=mx.gpu(0), logger=self.logger)
             resume = False
+            self.viz_net_graph()
         else:
             resume = True
             mx_module = mx.module.Module.load(self.chkpt_prfx, begin_epoch, context=mx.gpu(0), 
                                                 logger=self.logger)
 
-        self.viz_net_graph()
 
         # Load training iterators
         tb_writer     = TensorboardWriter(self.log_dir, reuse=resume)
