@@ -81,10 +81,10 @@ class BatchEndCB(object):
                     for name, value in name_value:
                         self.logger.info('Epoch[%d] Batch [%03d]\tSpeed: %.2f samples/sec\tTrain-%s=%f',
                                             param.epoch, batch, speed, name, value * 100)
+                        self.tb_writer.write_scalar("Training-Accuracy", value*100, batch)
                 else:
                     self.logger.info("Iter[%d] Batch [%d]\tSpeed: %.2f samples/sec",
                                         param.epoch, batch, speed)
-            self.tb_writer.write_scalar("Training-Accuracy", value, batch)
             self.tic = time()
             self.last_batch = batch
 
