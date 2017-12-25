@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import mxnet as mx
 from time import time
 import logging
+
 try:
     import tensorflow as tf
     class TensorboardWriter(object):
@@ -13,7 +14,7 @@ try:
         def write_scalar(self, name, val, idx):
             # Write to Tensorboard
             acc_summ = tf.summary.Summary()
-            summ_val = acc_summ.value.add(simple_value=val, tag="Validation-Accuracy")
+            summ_val = acc_summ.value.add(simple_value=val, tag=name)
             self.tb_writer.add_summary(acc_summ, idx)
             # Flush Tensorboard Writer
             self.tb_writer.flush()
@@ -58,13 +59,14 @@ class BatchEndCB(object):
         How many batches between calculations.
         Defaults to calculating & logging every 50 batches.
     """
-    def __init__(self, batch_size, log_freq=1, logger=logging):
+    def __init__(self, tensorboard_hdl, batch_size, log_freq=1, logger=logging):
         self.batch_size = batch_size
         self.log_freq   = log_freq
         self.init       = False
         self.tic        = time()
         self.last_batch = 0
         self.logger     = logger
+        self.tb_writer  = tensorboard_hdl
 
     def __call__(self, param):
         """Callback to Show speed."""
@@ -78,10 +80,11 @@ class BatchEndCB(object):
                     param.eval_metric.reset()
                     for name, value in name_value:
                         self.logger.info('Epoch[%d] Batch [%03d]\tSpeed: %.2f samples/sec\tTrain-%s=%f',
-                                            param.epoch, batch, speed, name, value)
+                                            param.epoch, batch, speed, name, value * 100)
                 else:
                     self.logger.info("Iter[%d] Batch [%d]\tSpeed: %.2f samples/sec",
                                         param.epoch, batch, speed)
+            self.tb_writer.write_scalar("Training-Accuracy", value, batch)
             self.tic = time()
             self.last_batch = batch
 
@@ -91,9 +94,9 @@ class EpochValCB(object):
     Called at the end of each epoch to 
     communicate the Validation results
     """
-    def __init__(self, log_dir, logger=logging, resume=False):
+    def __init__(self, tensorboard_hdl, logger=logging):
         self.logger     = logger
-        self.tb_writer  = TensorboardWriter(log_dir, reuse=resume)
+        self.tb_writer  = tensorboard_hdl
             
     def __call__(self, param):
         if param is None:
@@ -105,6 +108,6 @@ class EpochValCB(object):
         name_value = param.eval_metric.get_name_value()
         name, value  = name_value[0]
         value = value * 100
-        self.tb_writer.write_scalar(name, value, param.epoch)
+        self.tb_writer.write_scalar("Validation-Accuracy", value, param.epoch)
 
 

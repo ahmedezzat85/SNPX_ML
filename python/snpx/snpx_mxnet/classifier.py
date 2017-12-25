@@ -11,7 +11,7 @@ import mxnet as mx
 from scipy import misc
 
 from .. base_model import SNPXModel
-from . mx_callback import EpochValCB, BatchEndCB
+from . mx_callback import EpochValCB, BatchEndCB, TensorboardWriter
 from . mx_dataset import MxDataset
 
 class SNPXMxnetClassifier(SNPXModel):
@@ -65,9 +65,10 @@ class SNPXMxnetClassifier(SNPXModel):
         self.viz_net_graph()
 
         # Load training iterators
+        tb_writer     = TensorboardWriter(self.log_dir, reuse=resume)
         self.init     = init=mx.initializer.Xavier(magnitude=2.34, factor_type="in")
-        self.batch_cb = BatchEndCB(self.batch_size, logger=self.logger)
-        self.val_cb   = EpochValCB(self.log_dir, self.logger, resume=resume)
+        self.batch_cb = BatchEndCB(tb_writer, self.batch_size, logger=self.logger)
+        self.val_cb   = EpochValCB(tb_writer, self.logger)
         chkpt_cb = mx.callback.module_checkpoint(mx_module, self.chkpt_prfx, save_optimizer_states=False)
         mx_module.fit(train_data=self.dataset.mx_train_iter, eval_data=self.dataset.mx_eval_iter, 
                       epoch_end_callback=chkpt_cb, batch_end_callback=self.batch_cb,
