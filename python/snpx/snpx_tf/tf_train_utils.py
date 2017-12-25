@@ -4,6 +4,8 @@ import tensorflow as tf
 from tensorflow.contrib.layers import xavier_initializer
 from tensorflow.python.data import TFRecordDataset, Iterator
 
+### TODO Add a mechanism for a preprocessing function
+
 _IMAGE_TFREC_STRUCTURE = {
         'image' : tf.FixedLenFeature([], tf.string),
         'label' : tf.FixedLenFeature([], tf.int64)
@@ -14,7 +16,8 @@ def tf_create_data_iterator(
     train_set_file=None, 
     val_set_file=None, 
     shape=None, 
-    dtype=tf.float32):
+    dtype=tf.float32,
+    mean_img=None):
     """ """
     def tf_parse_record(tf_record):
         """ """
@@ -22,6 +25,7 @@ def tf_create_data_iterator(
         image = tf.decode_raw(feature['image'], tf.uint8)
         image = tf.reshape(image, shape)
         # image = tf.image.resize_images(image, [64, 64])
+        # image = tf.subtract(image, mean_img)
         label = tf.cast(feature['label'], tf.int64)
         image = tf.cast(image, dtype)
         return image, label

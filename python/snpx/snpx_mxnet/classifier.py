@@ -8,7 +8,6 @@ from datetime import datetime
 
 import numpy as np
 import mxnet as mx
-import tensorboard
 from scipy import misc
 
 from .. base_model import SNPXModel
@@ -27,8 +26,10 @@ class SNPXMxnetClassifier(SNPXModel):
                 data_aug=False, 
                 extend_dataset=False,
                 logs_root=None,
+                logs_subdir=None,
                 model_bin_root=None):
-        super(SNPXMxnetClassifier, self).__init__(model_name, dataset_name, "snpx_mxnet", logs_root, model_bin_root)
+        super(SNPXMxnetClassifier, self).__init__(model_name, dataset_name, "snpx_mxnet", 
+                                                    logs_root, model_bin_root, logs_subdir)
         self.symbol = None
         self.data_aug = data_aug
 
@@ -39,56 +40,37 @@ class SNPXMxnetClassifier(SNPXModel):
         g = mx.viz.plot_network(symbol=self.symbol, title=self.model_name, shape={'data': shape}, save_format='png')
         g.render(filename=self.model_name, directory=self.log_dir)
         img = misc.imread(os.path.join(self.log_dir, self.model_name+".png"))
-        # self.tb_writer.add_image(self.model_name, img)
 
-    def train_model(self, num_epoch):
+    def train_model(self, num_epoch, begin_epoch=0):
         """ """
         if self.data_aug is True: self.logger.info('Using Data Augmentation')
-        # Initialize the Optimizer
-        if(self.hp.optimizer.lower() == 'sgd'):
-            self.optmz = mx.optimizer.SGD(learning_rate=self.hp.lr, 
-                                          rescale_grad=(1.0/self.batch_size), momentum=0.9)
-        else:
-            self.optmz = mx.optimizer.Adam(learning_rate=self.hp.lr, 
-                                           rescale_grad=(1.0/self.batch_size))
 
-        self.init           = init=mx.initializer.Xavier(magnitude=2.34, factor_type="in")
-        self.val_acc        = []
-        self.train_acc      = []
-        self.batch_cb       = BatchEndCB(train_acc=self.train_acc, batch_size=self.batch_size, 
-                                         logger=self.logger)
-        self.val_cb         = EpochValCB(self.optmz, self.val_acc, self.log_dir, self.logger)
+        # Initialize the Optimizer
+        opt = self.hp.optimizer.lower()
+        opt_param = (('learning_rate', self.hp.lr), ('wd', self.hp.l2_reg),)
+        if  opt == 'sgd': opt_param += ('momentum', 0.9)
 
         # Load dataset
         self.dataset = MxDataset(self.dataset_name, self.batch_size, data_aug=self.data_aug)
-        self.symbol  = self.model_fn(self.dataset.num_classes)
+        if begin_epoch == 0:
+            self.symbol = self.model_fn(self.dataset.num_classes)
+            mx_module = mx.module.Module(symbol=self.symbol, context=mx.gpu(0), logger=self.logger)
+            resume = False
+        else:
+            mx_module = mx.module.Module.load(self.chkpt_prfx, begin_epoch, context=mx.gpu(0), 
+                                                logger=self.logger)
+            resume = True
 
-        # self.tb_writer  = tensorboard.SummaryWriter(self.log_dir)
         self.viz_net_graph()
 
-
-        # Create Checkpoint directory
-        chkpt_dir = os.path.join(self.log_dir, 'chkpt')
-        snpx_create_dir(chkpt_dir)
-        self.chkpt_prfx = os.path.join(chkpt_dir, 'CHKPT')
-
         # Load training iterators
-        start_time  = datetime.now()
-        mx_module = mx.module.Module(symbol=self.symbol, context=mx.gpu(0), logger=self.logger)
-        chkpt_cb = mx.callback.module_checkpoint(mx_module, self.chkpt_prfx, save_optimizer_states=True)
-        mx_module.fit(num_epoch=num_epoch, 
-                      optimizer=self.optmz, 
-                      initializer=self.init, 
-                      train_data=self.dataset.mx_train_iter, 
-                      eval_data=self.dataset.mx_eval_iter, 
-                      eval_end_callback=self.val_cb, 
-                      batch_end_callback=self.batch_cb, 
-                      epoch_end_callback=chkpt_cb)
+        self.init     = init=mx.initializer.Xavier(magnitude=2.34, factor_type="in")
+        self.batch_cb = BatchEndCB(self.batch_size, logger=self.logger)
+        self.val_cb   = EpochValCB(self.log_dir, self.logger, resume=resume)
+        chkpt_cb = mx.callback.module_checkpoint(mx_module, self.chkpt_prfx, save_optimizer_states=False)
+        mx_module.fit(train_data=self.dataset.mx_train_iter, eval_data=self.dataset.mx_eval_iter, 
+                      epoch_end_callback=chkpt_cb, batch_end_callback=self.batch_cb,
+                      optimizer=opt, optimizer_params=opt_param, eval_end_callback=self.val_cb,
+                      initializer=self.init, num_epoch=num_epoch)
         
         self.val_cb(None)
-
-        # Save the model with the best validation accuracy
-        best_epoch = self.val_acc.index(max(self.val_acc))
-        _, args, auxs = mx.model.load_checkpoint(prefix=self.chkpt_prfx, epoch=(best_epoch + 1))
-        mx_module.set_params(args, auxs)
-        mx_module.save_checkpoint(self.model_bin_dir+self.model_name, 0)

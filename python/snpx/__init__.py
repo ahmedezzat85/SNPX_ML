@@ -10,6 +10,7 @@ def get_classifier(args):
                                                         use_fp16       = bool(args.use_fp16),
                                                         data_aug       = args.data_aug,
                                                         logs_root      = args.logs_dir,
+                                                        logs_subdir    = args.logs_subdir,
                                                         model_bin_root = args.bin_dir
                                                         )
     elif args.backend.lower() == 'mxnet':
@@ -19,6 +20,7 @@ def get_classifier(args):
                                                         use_fp16       = bool(args.use_fp16),
                                                         data_aug       = bool(args.data_aug),
                                                         logs_root      = args.logs_dir,
+                                                        logs_subdir    = args.logs_subdir,
                                                         model_bin_root = args.bin_dir
                                                         )
     else:

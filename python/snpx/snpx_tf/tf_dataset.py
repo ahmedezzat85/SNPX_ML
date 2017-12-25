@@ -19,7 +19,9 @@ from . tf_train_utils import tf_create_data_iterator
 DATASETS = {'CIFAR-10': {'type'      : 'image_classification', 'num_classes': 10, 
                          'shape'     : (32,32,3), 
                          'train_file': 'CIFAR-10_train.tfrecords',
-                         'val_file'  : 'CIFAR-10_val.tfrecords'}
+                         'val_file'  : 'CIFAR-10_val.tfrecords',
+                         'test_file' : 'CIFAR-10_test.tfrecords',
+                         'mean_img'  : 'CIFAR-10.mean'}
         }
 
 
@@ -38,9 +40,11 @@ class TFDataset(object):
             
             self.num_classes = dataset['num_classes']
             self.data_shape  = dataset['shape']
+            self.mean_img    = \
+                np.fromfile(os.path.join(dataset_dir, dataset['mean_img'])).reshape(self.data_shape)
             self.train_set_init_op, self.eval_set_init_op, self.iter_op = \
                 tf_create_data_iterator(batch_size, self.train_file, self.val_file, 
-                                        self.data_shape, dtype)
+                                        self.data_shape, dtype, self.mean_img)
             
             if dataset['type'] == 'image_classification':
                 self.images, labels = self.iter_op
@@ -88,9 +92,11 @@ class CIFAR10(object):
     """
     """
     def __init__(self):
+        cifar10_dict = DATASETS['CIFAR-10']
         self.data_dir    = os.path.join(SNPX_DATASET_ROOT, "CIFAR-10")
-        self.train_file  = os.path.join(self.data_dir, "CIFAR-10_train.tfrecords")
-        self.val_file    = os.path.join(self.data_dir, "CIFAR-10_val.tfrecords")
+        self.train_file  = os.path.join(self.data_dir, cifar10_dict['train_file'])
+        self.val_file    = os.path.join(self.data_dir, cifar10_dict['val_file'])
+        self.test_file   = os.path.join(self.data_dir, cifar10_dict['test_file'])
         
     def _load_CIFAR_batch(self, batch_file):
         """ Read a CIFAR-10 batch file into numpy arrays """
@@ -109,11 +115,12 @@ class CIFAR10(object):
 
     def write_to_tfrecord(self):
         """ """
-        X_Train, Y_Train, X_Val, Y_Val = self.get_raw_data()
+        X_Train, Y_Train, X_Val, Y_Val, X_Test, Y_Test = self.get_raw_data()
         images_to_tfrecord(self.train_file, X_Train, Y_Train)
         images_to_tfrecord(self.val_file, X_Val, Y_Val)
+        images_to_tfrecord(self.test_file, X_Test, Y_Test)
 
-    def get_raw_data(self):
+    def get_raw_data(self, val_split=0.1):
         """   """
         for b in range(1,6):
             f = 'data_batch_' + str(b)
@@ -126,5 +133,18 @@ class CIFAR10(object):
                 x_train = xb
                 y_train = yb
 
-        x_val, y_val    = self._load_CIFAR_batch('test_batch')
-        return x_train, y_train, x_val, y_val
+        x_test, y_test = self._load_CIFAR_batch('test_batch')
+
+        # Perform Train/Val Split
+        if val_split:
+            num_train = len(x_train)
+            split_idx = int(num_train - num_train * val_split)
+            x_tr, x_val = np.split(x_train, [split_idx])
+            y_tr, y_val = np.split(y_train, [split_idx])
+        else:
+            x_tr = x_train
+            y_tr = y_train
+            x_val = x_test
+            y_val = y_test
+
+        return x_tr, y_tr, x_val, y_val, x_test, y_test

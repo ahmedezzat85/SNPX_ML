@@ -10,43 +10,44 @@ class MxNet(object):
         self.dtype     = dtype
         self.training  = train
         self.cudnn     = 'fastest'
-        self.net_out    = mx.sym.var(name='data', dtype=dtype)
+        self.net_out   = mx.sym.var(name='data', dtype=dtype)
         if dtype == 'float16':
             self.net_out   = mx.sym.Cast(data=self.net_out, dtype=np.float16)
 
-    def batch_norm(self, inputs=None, act_fn=None, name=None):
+    def batch_norm(self, data, act_fn='relu', name=None):
         """ """
-        data = self.net_out if inputs is None else inputs
-        self.net_out = mx.sym.BatchNorm(data=data)
-        if act_fn is not None:
-            self.net_out = mx.sym.Activation(data=self.net_out, act_type=act_fn)
-        return self.net_out
+        net_out = mx.sym.BatchNorm(data=data)
+        if act_fn:
+            net_out = mx.sym.Activation(data=net_out, act_type=act_fn)
+        return net_out
 
-    def convolution(self, num_filters, kernel, stride=(1,1), pad='same', act_fn='relu',
-                    add_bn=False, name=None, inputs=None, no_bias=False):
+    def convolution(self,
+                    data,
+                    num_filters,
+                    kernel,
+                    stride=(1,1),
+                    pad='same',
+                    act_fn='relu',
+                    add_bn=False,
+                    no_bias=False,
+                    name=None):
         """ """
         padding = (1,1) if pad.lower() == 'same' else (0,0)
 
         # Convolution
-        data = self.net_out if inputs is None else inputs
-        self.net_out = mx.sym.Convolution(data=data, 
-                                         kernel=kernel,
-                                         stride=stride,
-                                         pad=padding,
-                                         num_filter=num_filters,
-                                         cudnn_tune=self.cudnn,
-                                         no_bias=no_bias or add_bn,
-                                         name=name)
+        net_out = mx.sym.Convolution(data=data, kernel=kernel, stride=stride, pad=padding,
+                                     num_filter=num_filters, cudnn_tune=self.cudnn,
+                                     no_bias=(no_bias or add_bn), name=name)
         
         # Batch Normalization
         if add_bn == True:
             bn_name = None if name is None else name+'_BN'
-            self.net_out = mx.sym.BatchNorm(data=self.net_out)
+            net_out = mx.sym.BatchNorm(data=net_out, name=bn_name)
         
         # Activation
         if act_fn:
-            self.net_out = mx.sym.Activation(data=self.net_out, act_type=act_fn, name=name +'_'+act_fn)
-        return self.net_out
+            net_out = mx.sym.Activation(data=net_out, act_type=act_fn, name=name +'_'+act_fn)
+        return net_out
       
     def conv_dw(self, num_filters, kernel=(3,3), stride=(1,1), pad='same', act_fn='relu',
                     add_bn=False, ptwise_conv=True, inputs=None, name=None):
@@ -82,54 +83,48 @@ class MxNet(object):
         
         # PointWise Convolution
         if ptwise_conv is True:
-            self.convolution(num_filters, (1,1), stride=(1,1), pad='same', act_fn=act_fn,
+            net_out = self.convolution(num_filters, (1,1), stride=(1,1), pad='same', act_fn=act_fn,
                                 add_bn=add_bn, name=name)
-        return self.net_out
+        return net_out
          
-    def pooling(self, pool_type, kernel, stride=(2,2), name=None):
+    def pooling(self, data, pool_type, kernel, stride=None, name=None):
         """ """
-        self.net_out = mx.sym.Pooling(data=self.net_out,
-                                     kernel=kernel,
-                                     pool_type=pool_type,
-                                     stride=stride,
-                                     name=name)
-        return self.net_out
+        net_out = mx.sym.Pooling(data=data, kernel=kernel, pool_type=pool_type,
+                                    stride=stride, name=name)
+        return net_out
 
-    def global_pool(self, pool_type='avg', name=None):
+    def global_pool(self, data, pool_type='avg', name=None):
         """ """
-        self.net_out = mx.sym.Pooling(data=self.net_out, 
-                                     global_pool=True, 
-                                     kernel=(1,1), 
-                                     pool_type=pool_type, 
-                                     name=name)
-        return self.net_out
+        net_out = mx.sym.Pooling(data, global_pool=True, kernel=(1,1), pool_type=pool_type, name=name)
+        return net_out
         
-    def flatten(self):
+    def flatten(self, data):
         """ """
-        self.net_out = mx.sym.Flatten(data=self.net_out, name='flatten')
+        net_out = mx.sym.Flatten(data, name='flatten')
+        return net_out
 
-    def fully_connected(self, units, add_bn=False, act_fn='', name=None):
+    def fully_connected(self, data, units, add_bn=False, act_fn='', name=None):
         """ """
-        self.net_out = mx.sym.FullyConnected(data=self.net_out,
-                                            num_hidden=units,
-                                            name=name)
+        net_out = mx.sym.FullyConnected(data, num_hidden=units, name=name)
 
         if add_bn == True:
             bn_name = None if name is None else name+'_BN'
-            self.net_out = mx.sym.BatchNorm(data=self.net_out)
+            net_out = mx.sym.BatchNorm(data=net_out, name=bn_name)
 
         if act_fn:
-            self.net_out = mx.sym.Activation(data=self.net_out, act_type=act_fn, name=name + '_' + act_fn)
-        return self.net_out
+            net_out = mx.sym.Activation(data, act_type=act_fn, name=name + '_' + act_fn)
+        return net_out
 
-    def Softmax(self, num_classes, fc=True):
+    def Softmax(self, data, num_classes, fc=True):
         """
         """
         if fc == False:
-            self.convolution(num_classes, (1,1), pad='valid', act_fn='', name='Conv_Softmax')
-            self.flatten()
+            net_out = self.convolution(data, num_classes, (1,1), pad='valid', act_fn='', 
+                                        name='Conv_Softmax')
+            self.flatten(net_out)
         else:
-            self.fully_connected(units=num_classes, name="FC_softmax")
+            net_out = self.fully_connected(data, num_classes, name="FC_softmax")
         if self.dtype == 'float16':
-            label = mx.sym.Cast(data=self.net_out, dtype=np.float32)
-        self.net_out = mx.sym.SoftmaxOutput(data=self.net_out, name='softmax')
+            net_out = mx.sym.Cast(net_out, dtype=np.float32)
+        net_out = mx.sym.SoftmaxOutput(net_out, name='softmax')
+        return net_out

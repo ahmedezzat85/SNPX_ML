@@ -37,7 +37,7 @@ class SNPXModel(object):
     net_create : bool
         Whether to create the network architecture handler from an existing definition.
     """
-    def __init__(self, model_name, dataset_name, backend, logs_root, model_bin_root):
+    def __init__(self, model_name, dataset_name, backend, logs_root, model_bin_root, logs_subdir=''):
         """
         """
         if not isinstance(model_name, str):
@@ -57,9 +57,13 @@ class SNPXModel(object):
 
         # Create the log directories
         date_time = datetime.now().strftime("%Y%m%d-%H.%M")
-        self.log_dir = os.path.join(logs_root, backend, dataset_name, model_name)#, 'run_'+date_time)
+        if not logs_subdir:
+            logs_subdir = 'run_' + date_time
+        self.log_dir = os.path.join(logs_root, backend, dataset_name, model_name, logs_subdir)
         snpx_create_dir(self.log_dir)
-        self.chkpt_prfx = os.path.join(self.log_dir, "chkpt") + self.model_name
+        self.chkpt_dir = os.path.join(self.log_dir, 'chkpt')
+        snpx_create_dir(self.chkpt_dir)        
+        self.chkpt_prfx = os.path.join(self.chkpt_dir, 'CHKPT')
 
         self.model_dir = os.path.join(model_bin_root, backend, dataset_name, model_name)
         snpx_create_dir(self.model_dir)
@@ -136,10 +140,7 @@ class SNPXModel(object):
         train_start_time  = datetime.now()
         self.logger.info("Training Started at  : " + train_start_time.strftime("%Y-%m-%d %H:%M:%S"))
         # Perform training in backend
-        if start_epoch == 0:
-            self.train_model(num_epoch)
-        else:
-            self.resume_training(start_epoch, num_epoch)
+        self.train_model(num_epoch, start_epoch)
         self.logger.info("Training Finished at : " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         self.logger.info("Total Training Time  : " + str(datetime.now() - train_start_time))
 
@@ -158,7 +159,7 @@ class SNPXModel(object):
         """ """
         raise NotImplementedError()
         
-    def train_model(self, num_epoch):
+    def train_model(self, num_epoch, begin_epoch=0):
         raise NotImplementedError()
 
     def evaluate_model(self):

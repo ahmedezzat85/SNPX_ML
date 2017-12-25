@@ -27,9 +27,10 @@ class SNPXTensorflowClassifier(SNPXModel):
                 data_aug=[], 
                 extend_dataset=False,
                 logs_root=None,
+                logs_subdir=None,
                 model_bin_root=None):
         super().__init__(model_name, dataset_name, "snpx_tf",
-                                             logs_root, model_bin_root)
+                        logs_root, model_bin_root, logs_subdir)
         # Disable Tensorflow logs except for errors
         tf.logging.set_verbosity(tf.logging.ERROR)
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -61,14 +62,14 @@ class SNPXTensorflowClassifier(SNPXModel):
     def _create_train_op(self):
         """ """
         # Forward Propagation
-        logits, __ = self._forward_prop(batch=self.dataset.images, 
-                                        num_classes=self.dataset.num_classes,
-                                        predict=False,
-                                        training=True)
+        logits, predictions = self._forward_prop(batch=self.dataset.images, 
+                                                 num_classes=self.dataset.num_classes,
+                                                 predict=True,
+                                                 training=True)
         
         # Get the optimizer
         if(self.hp.optimizer.lower() == 'sgd'):
-            opt = tf.train.GradientDescentOptimizer(learning_rate=self.hp.lr)
+            opt = tf.train.MomentumOptimizer(learning_rate=self.hp.lr, momentum=0.9)
         else:
             opt = tf.train.AdamOptimizer(learning_rate=self.hp.lr)
         
@@ -79,7 +80,7 @@ class SNPXTensorflowClassifier(SNPXModel):
             loss = tf.losses.softmax_cross_entropy(self.dataset.labels, logits) # needs wrapping
             self.total_loss = tf.losses.get_total_loss()
             self.train_op = opt.minimize(self.total_loss, self.global_step_op)
-        self._create_eval_op(logits, self.dataset.labels)
+        self._create_eval_op(predictions, self.dataset.labels)
 
     def _create_eval_op(self, predictions, labels):
         """ """
@@ -141,7 +142,7 @@ class SNPXTensorflowClassifier(SNPXModel):
         self.tf_sess = tf.Session(config=config)
         self.tf_sess.run(tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()))
 
-    def train_model(self, num_epoch):
+    def train_model(self, num_epoch, begin_epoch=0):
         """ """
         with tf.Graph().as_default():
             self._load_dataset()
@@ -152,10 +153,19 @@ class SNPXTensorflowClassifier(SNPXModel):
 
             # Create a TF Session
             self.create_tf_session()
-
             # Create Tensorboard stuff
             self.summary_op = tf.summary.scalar("loss", self.total_loss)
             self.tb_writer  = tf.summary.FileWriter(self.log_dir, graph=self.tf_sess.graph)
+
+            if begin_epoch > 0:
+                # Load the saved model from a checkpoint
+                chkpt_state = tf.train.get_checkpoint_state(self.chkpt_dir)
+                self.logger.info("Loading Checkpoint " + chkpt_state.model_checkpoint_path)
+                out = chkpt_state.model_checkpoint_path.strip().split('CHKPT-')
+                begin_epoch = int(out[-1]) + 1
+                tf_model = tf.train.Saver()
+                tf_model.restore(self.tf_sess, chkpt_state.model_checkpoint_path)
+                self.tb_writer.reopen()
 
             # tfdebug Hook
             if self.debug is True:
@@ -163,49 +173,7 @@ class SNPXTensorflowClassifier(SNPXModel):
                 self.tf_sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
 
             # Training Loop
-            for self.epoch in range(num_epoch):
-                # Training
-                self._train_loop()
-                # Validation
-                val_acc = self._eval_loop()
-                # Visualize Training
-                acc_summ = tf.summary.Summary()
-                summ_val = acc_summ.value.add(simple_value=val_acc, tag="Validation-Accuracy")
-                self.tb_writer.add_summary(acc_summ, self.epoch)
-                self.logger.info('Epoch[%d] Validation-Accuracy = %.2f%%', self.epoch, val_acc)
-                # Flush Tensorboard Writer
-                self.tb_writer.flush()
-
-            # Save the last checkpoint
-            self.saver.save(self.tf_sess, self.model_prfx)
-            
-            # Close and terminate
-            self.tb_writer.close()
-            self.tf_sess.close()
-
-    def resume_training(self, start_epoch=1, num_epoch=1):
-        """ """
-        with tf.Graph().as_default():
-            self._load_dataset()
-            self._create_train_op()
-            self.saver = tf.train.Saver()
-
-            # Create a TF Session
-            self.create_tf_session()
-
-            # Load the saved model from a checkpoint
-            chkpt_state = tf.train.get_checkpoint_state(self.model_dir)
-            self.logger.info("Loading Checkpoint " + chkpt_state.model_checkpoint_path)
-            tf_model = tf.train.Saver()
-            tf_model.restore(self.tf_sess, chkpt_state.model_checkpoint_path)
-
-            # Create Tensorboard stuff
-            self.summary_op = tf.summary.scalar("loss", self.total_loss)
-            self.tb_writer  = tf.summary.FileWriter(self.log_dir, graph=self.tf_sess.graph)
-            self.tb_writer.reopen()
-
-            # Training Loop
-            for self.epoch in range(start_epoch, num_epoch):
+            for self.epoch in range(begin_epoch, num_epoch):
                 # Training
                 self._train_loop()
                 # Validation

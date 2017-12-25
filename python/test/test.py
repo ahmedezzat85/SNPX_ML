@@ -1,9 +1,14 @@
-def fn(a=None, b=None):
-    print ('fn', a, b)
+import numpy as np
+import snpx
+from snpx.snpx_tf.tf_dataset import CIFAR10
 
-def f1(x, c=10, **kwargs):
-    print ('f1  ', c)
-    fn(**kwargs)
+d = CIFAR10()
+d.write_to_tfrecord()
 
-d = {'a': 17, 'b': 88}
-f1(7, **d, c=12)
+# mean = np.mean(x_train, axis=0)
+# print (mean.shape)
+# mean.tofile('cifar10.mean')
+
+# b = np.fromfile('D:\github_ahmedezzat85\SNPX_ML\python\snpx\datasets\CIFAR-10\CIFAR-10.mean')
+# print (b.shape)
+# print (b)

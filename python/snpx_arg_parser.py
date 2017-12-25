@@ -25,6 +25,7 @@ def snpx_parse_cmd_line_options():
     arg_parser.add_argument('--begin-epoch'     , type=int      , help='Epoch ID of from which the training process will start. Useful for training resume.')
     arg_parser.add_argument('--debug'           , type=int      , help='Use TF CLI debug')
     arg_parser.add_argument('--logs-dir'        , type=str      , help='Logs Directory')
+    arg_parser.add_argument('--logs-subdir'     , type=str      , help='Logs Directory')
     arg_parser.add_argument('--bin-dir'         , type=str      , help='Logs Directory')
 
     arg_parser.set_defaults(
@@ -45,6 +46,7 @@ def snpx_parse_cmd_line_options():
         num_epoch       = 1,
         debug           = 0,
         logs_dir        = os.path.join(os.path.dirname(__file__), "log"),
+        logs_subdir     = '',
         bin_dir         = os.path.join(os.path.dirname(__file__), "model")
     )
 
