@@ -18,8 +18,9 @@ def mx_create_data_iterator(batch_size, train_set_file=None, val_set_file=None,
                 # mean=None, std=None, brightness=0, contrast=0, saturation=0, hue=0,
                 # pca_noise=0, rand_gray=0, inter_method=2
                 train_iter = mx.img.ImageIter(batch_size, shape, path_imgrec=train_set_file, 
-                                                rand_crop=True, rand_resize=True, rand_mirror=True,
-                                                mean=np.array([125.345, 122.942, 113.839]))
+                                                rand_mirror=True)
+                                                # rand_crop=True, rand_resize=True,
+                                                # mean=np.array([125.345, 122.942, 113.839]))
             else:
                 train_iter = mx.img.ImageIter(batch_size, shape, path_imgrec=train_set_file)
         if val_set_file is not None:

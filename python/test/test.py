@@ -1,4 +1,4 @@
-# import numpy as np
+import numpy as np
 # import snpx
 # from snpx.snpx_tf.tf_dataset import CIFAR10
 
@@ -13,8 +13,12 @@
 # # print (b.shape)
 # # print (b)
 
+import tensorflow as tf
 
-opt_param = (('learning_rate', 0.1), ('wd', 0.0001),)
-opt_param += (('momentum', 0.9),)
+a = tf.convert_to_tensor(np.ones([1, 20]) * 20)
+b = np.ones([1, 20]) * 5
 
-print (dict (opt_param))
+s = tf.subtract(a, b)
+with tf.Session() as sess:
+    out = sess.run([s])
+    print (out)

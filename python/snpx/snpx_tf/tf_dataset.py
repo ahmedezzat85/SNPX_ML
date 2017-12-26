@@ -7,14 +7,19 @@ import os
 import sys
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.data import TFRecordDataset, Iterator
+
+from .. backend import SNPX_DATASET_ROOT
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
 
-from .. backend import SNPX_DATASET_ROOT
-from . tf_train_utils import tf_create_data_iterator
+_IMAGE_TFREC_STRUCTURE = {
+        'image' : tf.FixedLenFeature([], tf.string),
+        'label' : tf.FixedLenFeature([], tf.int64)
+    }
 
 DATASETS = {'CIFAR-10': {'type'      : 'image_classification', 'num_classes': 10, 
                          'shape'     : (32,32,3), 
@@ -28,10 +33,18 @@ DATASETS = {'CIFAR-10': {'type'      : 'image_classification', 'num_classes': 10
 class TFDataset(object):
     """ 
     """
-    def __init__(self, dataset_name, batch_size, for_training=True, dtype=tf.float32, data_format='NCHW'):
+    def __init__(self,
+                 dataset_name,
+                 batch_size,
+                 for_training=True,
+                 dtype=tf.float32,
+                 data_format='NCHW',
+                 data_aug=False):
+        # Search for the dataset
         if dataset_name not in DATASETS:
             raise ValueError('Dataset <%s> does not exist', dataset_name)
         
+        # Process on CPU
         with tf.device('/cpu:0'):
             dataset = DATASETS[dataset_name]
             dataset_dir = os.path.join(SNPX_DATASET_ROOT, dataset_name) 
@@ -40,17 +53,74 @@ class TFDataset(object):
             
             self.num_classes = dataset['num_classes']
             self.data_shape  = dataset['shape']
-            self.mean_img    = \
-                np.fromfile(os.path.join(dataset_dir, dataset['mean_img'])).reshape(self.data_shape)
-            self.train_set_init_op, self.eval_set_init_op, self.iter_op = \
-                tf_create_data_iterator(batch_size, self.train_file, self.val_file, 
-                                        self.data_shape, dtype, self.mean_img)
+            self.mean_img    = np.fromfile(os.path.join(dataset_dir, dataset['mean_img'])).reshape(self.data_shape)
+            self.tf_create_data_iterator(batch_size, dtype, data_aug)
             
             if dataset['type'] == 'image_classification':
                 self.images, labels = self.iter_op
                 self.labels  = tf.one_hot(labels, self.num_classes)
                 if data_format.startswith('NC'):
                     self.images = tf.transpose(self.images, [0, 3, 1, 2])
+
+    def preprocess(self, image):
+        """ """
+        # im_out = tf.subtract(image, self.mean_img)
+        im_out = image
+        im_out = tf.image.pad_to_bounding_box(im_out, 4, 4, 40, 40)
+        im_out = tf.image.random_flip_left_right(im_out)
+        im_out = tf.random_crop(im_out, self.data_shape)
+        return im_out
+
+    def tf_create_data_iterator(self,
+                                batch_size, 
+                                dtype=tf.float32,
+                                data_aug=False):
+        """ """
+        def tf_parse_record(tf_record):
+            """ """
+            feature = tf.parse_single_example(tf_record, features=_IMAGE_TFREC_STRUCTURE)
+            image = tf.decode_raw(feature['image'], tf.uint8)
+            image = tf.reshape(image, self.data_shape)
+            image = self.preprocess(image)
+            label = tf.cast(feature['label'], tf.int64)
+            image = tf.cast(image, dtype)
+            return image, label
+
+        val_set       = None
+        train_set     = None
+        out_types     = None
+        out_shapes    = None
+        val_init_op   = None
+        train_init_op = None
+
+        # Create the validation dataset object
+        if self.val_file is not None:
+            val_set = TFRecordDataset(self.val_file)
+            val_set = val_set.map(tf_parse_record)
+            val_set = val_set.batch(batch_size)
+            out_types = val_set.output_types
+            out_shapes = val_set.output_shapes
+
+        # Create the training dataset object
+        if self.train_file is not None:
+            train_set = TFRecordDataset(self.train_file)
+            train_set = train_set.map(tf_parse_record)
+            train_set = train_set.shuffle(buffer_size=batch_size * 10000)
+            train_set = train_set.batch(batch_size)
+            out_types = train_set.output_types
+            out_shapes = train_set.output_shapes
+
+        # Create a reinitializable iterator from both datasets
+        iterator  = Iterator.from_structure(out_types, out_shapes)
+        
+        if train_set is not None:
+            self.train_set_init_op = iterator.make_initializer(train_set)
+        
+        if val_set is not None:
+            self.eval_set_init_op = iterator.make_initializer(val_set)
+
+        self.iter_op = iterator.get_next()
+        return self.train_set_init_op, self.eval_set_init_op, self.iter_op
 
 ##########################################################
 def _int64_feature(value):

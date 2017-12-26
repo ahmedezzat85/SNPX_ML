@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.layers import xavier_initializer
 from tensorflow.python.data import TFRecordDataset, Iterator
 
 ### TODO Add a mechanism for a preprocessing function

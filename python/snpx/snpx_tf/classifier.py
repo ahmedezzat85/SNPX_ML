@@ -18,19 +18,18 @@ class SNPXTensorflowClassifier(SNPXModel):
     """ Class for training a deep learning model.
     """
     def __init__(self, 
-                model_name, 
-                dataset_name,
-                data_format='NHWC',
-                devices=['CPU'], 
-                use_fp16=False,
-                debug=False,
-                data_aug=[], 
-                extend_dataset=False,
-                logs_root=None,
-                logs_subdir=None,
-                model_bin_root=None):
-        super().__init__(model_name, dataset_name, "snpx_tf",
-                        logs_root, model_bin_root, logs_subdir)
+                 model_name, 
+                 dataset_name,
+                 data_format='NHWC',
+                 devices=['CPU'], 
+                 use_fp16=False,
+                 debug=False,
+                 data_aug=False, 
+                 extend_dataset=False,
+                 logs_root=None,
+                 logs_subdir=None,
+                 model_bin_root=None):
+        super().__init__(model_name, dataset_name, "snpx_tf", logs_root, model_bin_root, logs_subdir)
         # Disable Tensorflow logs except for errors
         tf.logging.set_verbosity(tf.logging.ERROR)
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -45,11 +44,12 @@ class SNPXTensorflowClassifier(SNPXModel):
         self.summary_op     = None
         self.data_format    = data_format
         self.global_step_op = None
+        self.data_aug       = data_aug
 
     def _load_dataset(self, training=True):
         """ """
-        self.dataset = TFDataset(self.dataset_name, self.batch_size, training, 
-                                    self.dtype, self.data_format)
+        self.dataset = TFDataset(self.dataset_name, self.batch_size, training, self.dtype,
+                                    self.data_format, self.data_aug)
 
     def _forward_prop(self, batch, num_classes, training=True):
         """ """

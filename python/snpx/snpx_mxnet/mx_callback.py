@@ -67,26 +67,31 @@ class BatchEndCB(object):
         self.last_batch = 0
         self.logger     = logger
         self.tb_writer  = tensorboard_hdl
+        self.step       = 0
+        self.last_epoch = -1
 
     def __call__(self, param):
         """Callback to Show speed."""
-        batch = param.nbatch
+        batch_idx = param.nbatch
+        if param.epoch != self.last_epoch: self.step += batch_idx
+        curr_step = self.step + batch_idx
+
         elapsed = time() - self.tic
         if elapsed >= self.log_freq:
-            speed = ((batch - self.last_batch)  * self.batch_size) / elapsed
-            if self.last_batch <= batch:
+            speed = ((batch_idx - self.last_batch)  * self.batch_size) / elapsed
+            if self.last_batch <= batch_idx:
                 if param.eval_metric is not None:
                     name_value = param.eval_metric.get_name_value()
                     param.eval_metric.reset()
                     for name, value in name_value:
                         self.logger.info('Epoch[%d] Batch [%03d]\tSpeed: %.2f samples/sec\tTrain-%s=%f',
-                                            param.epoch, batch, speed, name, value * 100)
-                        self.tb_writer.write_scalar("Training-Accuracy", value*100, batch)
+                                            param.epoch, batch_idx, speed, name, value * 100)
+                        self.tb_writer.write_scalar("Training-Accuracy", value*100, curr_step)
                 else:
                     self.logger.info("Iter[%d] Batch [%d]\tSpeed: %.2f samples/sec",
-                                        param.epoch, batch, speed)
+                                        param.epoch, batch_idx, speed)
             self.tic = time()
-            self.last_batch = batch
+            self.last_batch = batch_idx
 
 class EpochValCB(object):
     """ Epoch Validation End callback

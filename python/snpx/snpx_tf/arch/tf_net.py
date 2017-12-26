@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import tensorflow as tf
 from tensorflow.contrib.layers import flatten, separable_conv2d, l2_regularizer
-from ..tf_train_utils import xavier_initializer
+from tensorflow.contrib.layers import xavier_initializer
 
 TF_ACT_FN = {'relu': tf.nn.relu, 'leaky': tf.nn.leaky_relu}
 
