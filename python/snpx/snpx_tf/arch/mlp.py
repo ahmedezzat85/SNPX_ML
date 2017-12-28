@@ -2,21 +2,26 @@ from __future__ import absolute_import
 
 import tensorflow as tf
 from . tf_net import TFNet
-from .. import tf_train_utils as tf_train
 
-def snpx_net_create(num_classes, 
-                    input_data,
-                    data_format="NHWC",
-                    is_training=True):
+class MLP(TFNet):
+    """
+    """
+    def __init__(self, data, data_format, num_classes, is_train=True):
+        dtype = data.dtype.base_dtype
+        super(MLP, self).__init__(data, data_format, train=is_train, l2_reg=2e-4)
+        self.net_out = tf.identity(data, name='data')
+        self.num_classes = num_classes
+
+    def __call__(self, hidden=2):
+        net_out = self.flatten(self.net_out)
+        for k in range(hidden):
+            net_out = self.fully_connected(net_out, 100, add_bn=False, act_fn='relu', name='fc_'+str(k))
+        
+        net_out = self.Softmax(net_out, self.num_classes)
+        return net_out
+
+def snpx_net_create(num_classes, input_data, data_format="NHWC", is_training=True):
     """ """
-    dtype = input_data.dtype.base_dtype
-    
-    #CONVOLUTION_1 3x3/1,64
-    net = TFNet(input_data, data_format, train=is_training,
-                kernel_init=tf_train.xavier_initializer(dtype=dtype), 
-                bias_init=tf.zeros_initializer(dtype))
-    
-    net.flatten()
-    net.fully_connected(256, act_fn='relu', name='FC1')
-    net.fully_connected(num_classes, name='FC_Softmax')
-    return net.out_tensor
+    net = MLP(input_data, data_format, num_classes, is_training)
+    net_out = net()
+    return net_out

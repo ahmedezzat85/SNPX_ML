@@ -1,8 +1,7 @@
 from __future__ import absolute_import
 
 import tensorflow as tf
-from tensorflow.contrib.layers import flatten, separable_conv2d, l2_regularizer
-from tensorflow.contrib.layers import xavier_initializer
+from tensorflow.contrib.layers import separable_conv2d, l2_regularizer
 
 TF_ACT_FN = {'relu': tf.nn.relu, 'leaky': tf.nn.leaky_relu}
 
@@ -12,14 +11,16 @@ class TFNet(object):
     def __init__(self,
                  data_type=tf.float32, 
                  data_format='NHWC',
-                 kernel_init=xavier_initializer(),
+                 kernel_init=tf.variance_scaling_initializer(),
                  l2_reg=0,
                  train=True):
         self.dtype       = data_type
         self.kernel_init = kernel_init
-        self.regulaizer  = None if l2_reg == 0 else l2_regularizer(l2_reg)
+        self.regulaizer  = None
         self.data_format = data_format
         self.trainable   = train
+        self.bn_eps      = 1e-5
+        self.bn_decay    = .997
         if data_format.startswith("NC"):
             self.channels_order = 'channels_first'
         else:
@@ -30,6 +31,7 @@ class TFNet(object):
         # Batch Normalization Layer
         bn_axis = 1 if self.data_format.startswith('NC') else -1
         net_out = tf.layers.batch_normalization(inputs=data, axis=bn_axis, training=True,
+                                                epsilon=self.bn_eps, momentum=self.bn_decay,
                                                 trainable=self.trainable, fused=True, name=name)
         # Activation
         if act_fn in TF_ACT_FN:
@@ -141,5 +143,7 @@ class TFNet(object):
             net_out = self.flatten(net_out)
         else:
             net_out = self.fully_connected(data, num_classes, name="FC_softmax")
+        if self.dtype != tf.float32:
+            net_out = tf.cast(net_out, tf.float32)
         predictions = tf.nn.softmax(net_out, name='Output')
         return net_out, predictions

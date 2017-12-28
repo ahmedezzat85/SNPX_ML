@@ -52,8 +52,8 @@ class TFDataset(object):
             self.val_file    = os.path.join(dataset_dir, dataset['val_file'])
             
             self.num_classes = dataset['num_classes']
-            self.data_shape  = dataset['shape']
-            self.mean_img    = np.fromfile(os.path.join(dataset_dir, dataset['mean_img'])).reshape(self.data_shape)
+            self.shape  = dataset['shape']
+            self.mean_img    = np.fromfile(os.path.join(dataset_dir, dataset['mean_img'])).reshape(self.shape)
             self.tf_create_data_iterator(batch_size, dtype, data_aug)
             
             if dataset['type'] == 'image_classification':
@@ -65,10 +65,11 @@ class TFDataset(object):
     def preprocess(self, image):
         """ """
         # im_out = tf.subtract(image, self.mean_img)
-        im_out = image
-        im_out = tf.image.pad_to_bounding_box(im_out, 4, 4, 40, 40)
+        # im_out = image / 255
+        im_out = tf.image.resize_image_with_crop_or_pad(image, self.shape[0] + 8, self.shape[1] + 8)
+        im_out = tf.random_crop(im_out, self.shape)
         im_out = tf.image.random_flip_left_right(im_out)
-        im_out = tf.random_crop(im_out, self.data_shape)
+        im_out = tf.image.per_image_standardization(im_out)
         return im_out
 
     def tf_create_data_iterator(self,
@@ -76,12 +77,14 @@ class TFDataset(object):
                                 dtype=tf.float32,
                                 data_aug=False):
         """ """
+        def preprocess(image):
+            return self.preprocess(image)
+
         def tf_parse_record(tf_record):
             """ """
             feature = tf.parse_single_example(tf_record, features=_IMAGE_TFREC_STRUCTURE)
             image = tf.decode_raw(feature['image'], tf.uint8)
-            image = tf.reshape(image, self.data_shape)
-            image = self.preprocess(image)
+            image = tf.reshape(image, self.shape)
             label = tf.cast(feature['label'], tf.int64)
             image = tf.cast(image, dtype)
             return image, label
@@ -105,7 +108,8 @@ class TFDataset(object):
         if self.train_file is not None:
             train_set = TFRecordDataset(self.train_file)
             train_set = train_set.map(tf_parse_record)
-            train_set = train_set.shuffle(buffer_size=batch_size * 10000)
+            train_set = train_set.map(lambda image, label: (preprocess(image), label))
+            train_set = train_set.shuffle(buffer_size=50000) # TODO Remove the hardcoded value
             train_set = train_set.batch(batch_size)
             out_types = train_set.output_types
             out_shapes = train_set.output_shapes

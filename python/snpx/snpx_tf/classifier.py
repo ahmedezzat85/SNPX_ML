@@ -67,19 +67,21 @@ class SNPXTensorflowClassifier(SNPXModel):
         if optmz == 'sgd':
             opt = tf.train.MomentumOptimizer(self.hp.lr, momentum=0.9)
         else:
-            opt = tf.train.AdamOptimizer(self.hp.lr)
+            opt = tf.train.AdamOptimizer(self.hp.lr)#, epsilon=1e-4)
         
         # Compute the loss and the train_op
         self.global_step_op = tf.train.get_or_create_global_step()
         update_ops  = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-            loss = tf.losses.softmax_cross_entropy(self.dataset.labels, logits) # needs wrapping
-            self.total_loss = tf.losses.get_total_loss()
+            cross_entropy = tf.losses.softmax_cross_entropy(self.dataset.labels, logits) # needs wrapping
+            reg_loss = self.hp.l2_reg * tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()])
+            self.total_loss = cross_entropy + reg_loss
             self.train_op = opt.minimize(self.total_loss, self.global_step_op)
-        self._create_eval_op(predictions, self.dataset.labels)
+        self._create_eval_op(logits, self.dataset.labels)
 
     def _create_eval_op(self, predictions, labels):
         """ """
+        # self.eval_op = tf.metrics.accuracy(tf.argmax(labels, axis=1), predictions)
         acc_tensor   = tf.equal(tf.argmax(predictions, axis=1), tf.argmax(labels, axis=1))
         self.eval_op = tf.reduce_mean(tf.cast(acc_tensor, tf.float32))
 
@@ -143,9 +145,6 @@ class SNPXTensorflowClassifier(SNPXModel):
         with tf.Graph().as_default():
             self._load_dataset()
             self._create_train_op()
-            self.saver = tf.train.Saver()
-            tf.add_to_collection('train_op', self.train_op)
-            tf.add_to_collection('eval_op', self.eval_op)
 
             # Create a TF Session
             self.create_tf_session()
@@ -155,13 +154,15 @@ class SNPXTensorflowClassifier(SNPXModel):
 
             if begin_epoch > 0:
                 # Load the saved model from a checkpoint
-                chkpt_state = tf.train.get_checkpoint_state(self.chkpt_dir)
-                self.logger.info("Loading Checkpoint " + chkpt_state.model_checkpoint_path)
-                out = chkpt_state.model_checkpoint_path.strip().split('CHKPT-')
-                begin_epoch = int(out[-1]) + 1
-                tf_model = tf.train.Saver()
-                tf_model.restore(self.tf_sess, chkpt_state.model_checkpoint_path)
+                chkpt = self.chkpt_prfx + '-' + str(begin_epoch)
+                self.logger.info("Loading Checkpoint " + chkpt)
+                begin_epoch += 1
+                num_epoch   += begin_epoch
+                self.saver = tf.train.Saver(max_to_keep=200)
+                self.saver.restore(self.tf_sess, chkpt)
                 self.tb_writer.reopen()
+            else:
+                self.saver = tf.train.Saver(max_to_keep=200)
 
             # tfdebug Hook
             if self.debug is True:
