@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 import tensorflow as tf
-from tensorflow.contrib.layers import separable_conv2d, l2_regularizer
+from tensorflow.contrib.layers import separable_conv2d, xavier_initializer
 
 TF_ACT_FN = {'relu': tf.nn.relu, 'leaky': tf.nn.leaky_relu}
 
@@ -11,16 +11,16 @@ class TFNet(object):
     def __init__(self,
                  data_type=tf.float32, 
                  data_format='NHWC',
-                 kernel_init=tf.variance_scaling_initializer(),
-                 l2_reg=0,
                  train=True):
         self.dtype       = data_type
-        self.kernel_init = kernel_init
         self.regulaizer  = None
         self.data_format = data_format
-        self.trainable   = train
+        self.trainable   = True
+        self.train       = train
         self.bn_eps      = 1e-5
-        self.bn_decay    = .997
+        self.bn_decay    = 0.997
+        self.kernel_init = xavier_initializer()
+        # tf.variance_scaling_initializer(1.0, 'fan_avg', 'uniform', dtype=data_type)
         if data_format.startswith("NC"):
             self.channels_order = 'channels_first'
         else:
@@ -30,8 +30,8 @@ class TFNet(object):
         """ """
         # Batch Normalization Layer
         bn_axis = 1 if self.data_format.startswith('NC') else -1
-        net_out = tf.layers.batch_normalization(inputs=data, axis=bn_axis, training=True,
-                                                epsilon=self.bn_eps, momentum=self.bn_decay,
+        net_out = tf.layers.batch_normalization(inputs=data, axis=bn_axis, training=self.train,
+                                                epsilon=self.bn_eps, momentum=self.bn_decay, scale=False,
                                                 trainable=self.trainable, fused=True, name=name)
         # Activation
         if act_fn in TF_ACT_FN:
@@ -127,6 +127,10 @@ class TFNet(object):
         net_out = tf.layers.flatten(data, name='Flatten_0')
         return net_out
 
+    def dropout(self, data, rate):
+        net_out = tf.layers.dropout(data, rate, training=self.train)
+        return net_out
+    
     def fully_connected(self, data, units, add_bn=False, act_fn='', name=None):
         """ """
         net_out = tf.layers.dense(data, units, activation=None, use_bias=not add_bn,

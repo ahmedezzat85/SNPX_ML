@@ -3,16 +3,16 @@
 set PYTHON=python3
 set BE=tensorflow
 set DATASET=CIFAR-10
-set NUM_EPOCH=100
-set BATCH_SZ=128
+set NUM_EPOCH=50
+set BATCH_SZ=256
 set FP16=0
 set FMT=NCHW
-set model=resnet
-set MODEL_LOG_DIR=resnet-18
-set LR=0.1
-set L2_REG=0.0002
+set model=mini_vgg
+set MODEL_LOG_DIR=net-8
+set LR=0.001
+set L2_REG=0
 set DATA_AUG=1
-set OPT=sgd
+set OPT=adam
 set EPOCH=0
 
 %PYTHON% snpx_train_classifier.py ^

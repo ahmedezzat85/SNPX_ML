@@ -5,7 +5,7 @@ set BE=tensorflow
 set DATASET=CIFAR-10
 set BATCH_SZ=200
 set model=mini_vgg
-set FMT=NHWC
+set FMT=NCHW
 
 %PYTHON% snpx_test_classifier.py ^
 		--backend %BE% ^

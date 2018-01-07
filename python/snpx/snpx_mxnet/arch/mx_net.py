@@ -89,6 +89,8 @@ class MxNet(object):
          
     def pooling(self, data, pool_type, kernel, stride=None, name=None):
         """ """
+        if stride is None:
+            stride = kernel
         net_out = mx.sym.Pooling(data=data, kernel=kernel, pool_type=pool_type,
                                     stride=stride, name=name)
         return net_out

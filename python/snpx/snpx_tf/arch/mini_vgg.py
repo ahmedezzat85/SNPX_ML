@@ -2,37 +2,35 @@ from __future__ import absolute_import
 
 import tensorflow as tf
 from . tf_net import TFNet
-from .. import tf_train_utils as tf_train
 
-def mini_vgg(net, use_bn=False):
-    # CONVOLUTION_1 3x3/1,64
-    net.convolution(64, (3,3), add_bn=use_bn, name='conv1_a')
-    net.convolution(64, (3,3), add_bn=use_bn, name='conv1_b')
-    net.pooling('max', (2,2), name='pool1')
-    
-    # CONVOLUTION_2 3x3/1,128 
-    net.convolution(128, (3,3), add_bn=use_bn, name='conv2_a')
-    net.convolution(128, (3,3), add_bn=use_bn, name='conv2_b')
-    net.pooling('max', (2,2), name='pool2')
+class MiniVGG(TFNet):
+    """
+    """
+    def __init__(self, data, data_format, num_classes, is_train=True):
+        dtype = data.dtype.base_dtype
+        super(MiniVGG, self).__init__(dtype, data_format, train=is_train)
+        self.net_out = tf.identity(data, name='data')
+        self.num_classes = num_classes
 
-    # CONVOLUTION_3 3x3/1,256
-    net.convolution(256, (3,3), add_bn=use_bn, name='conv3_a')
-    net.convolution(256, (3,3), add_bn=use_bn, name='conv3_b')
-    net.pooling('avg', (8,8), name="global_pool")
-    return net
+    def __call__(self, blocks, filters=[32, 64, 128], strides=[2,2,1], bn=True):
+        net_out = self.net_out
+        for i in range(len(blocks)):
+            f = filters[i]
+            n = blocks[i]
+            for k in range(n):
+                net_out = self.convolution(net_out, f, (3,3), add_bn=bn, name='Conv'+str(i+1)+str(k+1))
+            if strides[i] > 1:
+                net_out = self.pooling(net_out, 'max', (2,2), name='Pool'+str(i+1))
 
-def snpx_net_create(num_classes, 
-                    input_data,
-                    data_format="NHWC",
-                    is_training=True,
-                    use_bn=True):
+        net_out = self.pooling(net_out, 'avg', (8,8), name='global_pool')
+        net_out = self.dropout(net_out, 0.5)
+        net_out = self.flatten(net_out)
+        net_out = self.Softmax(net_out, self.num_classes)
+        return net_out
+
+def snpx_net_create(num_classes, input_data, data_format="NHWC", is_training=True):
     """ """
-    dtype = input_data.dtype.base_dtype
-    
-    net = TFNet(input_data, data_format, train=is_training,
-                kernel_init=tf_train.xavier_initializer(dtype=dtype), 
-                bias_init=tf.zeros_initializer(dtype))
-    net = mini_vgg(net, use_bn)
-    net.convolution(num_classes, (1,1), pad='valid', act_fn='', name='Conv_Softmax')
-    net.flatten()
-    return net.out_tensor
+    net = MiniVGG(input_data, data_format, num_classes, is_training)
+    net_out = net(blocks=[2, 2, 2], filters=[64, 128, 256], strides=[2,2,1])
+    # net_out = net(blocks=[7, 6, 6], filters=[16, 32, 64], strides=[2,2,1], bn=False)
+    return net_out

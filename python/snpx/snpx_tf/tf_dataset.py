@@ -10,6 +10,7 @@ import tensorflow as tf
 from tensorflow.python.data import TFRecordDataset, Iterator
 
 from .. backend import SNPX_DATASET_ROOT
+from .. util import DictToAttrs
 
 try:
     import cPickle as pickle
@@ -40,91 +41,87 @@ class TFDataset(object):
                  dtype=tf.float32,
                  data_format='NCHW',
                  data_aug=False):
+
         # Search for the dataset
         if dataset_name not in DATASETS:
             raise ValueError('Dataset <%s> does not exist', dataset_name)
         
-        # Process on CPU
-        with tf.device('/cpu:0'):
-            dataset = DATASETS[dataset_name]
-            dataset_dir = os.path.join(SNPX_DATASET_ROOT, dataset_name) 
-            self.train_file  = os.path.join(dataset_dir, dataset['train_file']) if for_training else None
-            self.val_file    = os.path.join(dataset_dir, dataset['val_file'])
-            
-            self.num_classes = dataset['num_classes']
-            self.shape  = dataset['shape']
-            self.mean_img    = np.fromfile(os.path.join(dataset_dir, dataset['mean_img'])).reshape(self.shape)
-            self.tf_create_data_iterator(batch_size, dtype, data_aug)
-            
-            if dataset['type'] == 'image_classification':
-                self.images, labels = self.iter_op
-                self.labels  = tf.one_hot(labels, self.num_classes)
-                if data_format.startswith('NC'):
-                    self.images = tf.transpose(self.images, [0, 3, 1, 2])
+        print ('Data Aug ', data_aug)
+        dataset = DATASETS[dataset_name]
+        dataset_dir = os.path.join(SNPX_DATASET_ROOT, dataset_name) 
+        train_file  = os.path.join(dataset_dir, dataset['train_file'])
+        val_file    = os.path.join(dataset_dir, dataset['val_file'])
+        test_file   = os.path.join(dataset_dir, dataset['test_file'])
+        mean_image  = os.path.join(dataset_dir, dataset['mean_img'])
 
-    def preprocess(self, image):
+        self.dtype       = dtype
+        self.num_classes = dataset['num_classes']
+        self.shape       = dataset['shape']
+        self.mean_img    = np.fromfile(mean_image).reshape(self.shape)
+        # Generate Dataset Iterators 
+        if for_training is True:
+            train_preproc = self._train_preproc if data_aug is True else self._test_preproc
+            data = [
+                {'file': train_file , 'preproc': train_preproc      , 'shuffle': True},
+                {'file': val_file   , 'preproc': self._test_preproc , 'shuffle': False}
+            ]
+            iter_op, init_ops = self._create_data_iterators(data, batch_size, dtype)
+            self.train_set_init_op, self.eval_set_init_op = init_ops
+        else:
+            data = [
+                {'file': test_file  , 'preproc': self._test_preproc , 'shuffle': False}
+            ]
+            iter_op, init_ops = self._create_data_iterators(data, batch_size, dtype)
+            self.eval_set_init_op = init_ops
+            
+        if dataset['type'] == 'image_classification':
+            self.images, labels = iter_op
+            self.labels  = tf.one_hot(labels, self.num_classes)
+            if data_format.startswith('NC'):
+                self.images = tf.transpose(self.images, [0, 3, 1, 2])
+
+    def _train_preproc(self, image):
         """ """
-        # im_out = tf.subtract(image, self.mean_img)
-        # im_out = image / 255
         im_out = tf.image.resize_image_with_crop_or_pad(image, self.shape[0] + 8, self.shape[1] + 8)
         im_out = tf.random_crop(im_out, self.shape)
         im_out = tf.image.random_flip_left_right(im_out)
-        im_out = tf.image.per_image_standardization(im_out)
+        im_out = tf.cast(im_out, self.dtype)
         return im_out
 
-    def tf_create_data_iterator(self,
-                                batch_size, 
-                                dtype=tf.float32,
-                                data_aug=False):
+    def _test_preproc(self, image):
         """ """
-        def preprocess(image):
-            return self.preprocess(image)
+        image = tf.cast(image, self.dtype)
+        return image
 
+    def _create_data_iterators(self, tf_rec_list, batch_size, dtype=tf.float32):
+        """ """
         def tf_parse_record(tf_record):
             """ """
             feature = tf.parse_single_example(tf_record, features=_IMAGE_TFREC_STRUCTURE)
             image = tf.decode_raw(feature['image'], tf.uint8)
             image = tf.reshape(image, self.shape)
             label = tf.cast(feature['label'], tf.int64)
-            image = tf.cast(image, dtype)
             return image, label
 
-        val_set       = None
-        train_set     = None
-        out_types     = None
-        out_shapes    = None
-        val_init_op   = None
-        train_init_op = None
+        data_iter = None
+        iter_list = []
+        for rec in tf_rec_list:
+            rec = DictToAttrs(rec)
+            dataset = TFRecordDataset(rec.file)
+            dataset = dataset.map(tf_parse_record)
+            dataset = dataset.map(lambda image, label: (rec.preproc(image), label))#, batch_size)
+            if rec.shuffle: dataset = dataset.shuffle(buffer_size=50000)
+            dataset = dataset.batch(batch_size)
+            out_types = dataset.output_types
+            out_shapes = dataset.output_shapes
 
-        # Create the validation dataset object
-        if self.val_file is not None:
-            val_set = TFRecordDataset(self.val_file)
-            val_set = val_set.map(tf_parse_record)
-            val_set = val_set.batch(batch_size)
-            out_types = val_set.output_types
-            out_shapes = val_set.output_shapes
+            if data_iter is None:
+                # Create a reinitializable iterator
+                data_iter  = Iterator.from_structure(out_types, out_shapes)
+            iter_init = data_iter.make_initializer(dataset)
+            iter_list.append(iter_init)
 
-        # Create the training dataset object
-        if self.train_file is not None:
-            train_set = TFRecordDataset(self.train_file)
-            train_set = train_set.map(tf_parse_record)
-            train_set = train_set.map(lambda image, label: (preprocess(image), label))
-            train_set = train_set.shuffle(buffer_size=50000) # TODO Remove the hardcoded value
-            train_set = train_set.batch(batch_size)
-            out_types = train_set.output_types
-            out_shapes = train_set.output_shapes
-
-        # Create a reinitializable iterator from both datasets
-        iterator  = Iterator.from_structure(out_types, out_shapes)
-        
-        if train_set is not None:
-            self.train_set_init_op = iterator.make_initializer(train_set)
-        
-        if val_set is not None:
-            self.eval_set_init_op = iterator.make_initializer(val_set)
-
-        self.iter_op = iterator.get_next()
-        return self.train_set_init_op, self.eval_set_init_op, self.iter_op
+        return data_iter.get_next(), iter_list
 
 ##########################################################
 def _int64_feature(value):

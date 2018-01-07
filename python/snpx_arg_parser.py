@@ -41,7 +41,7 @@ def snpx_parse_cmd_line_options():
         data_aug        = 0,
         batch_size      = 128,
         lr_step         = 10000,
-        lr_decay        = 0.9,
+        lr_decay        = 0,
         begin_epoch     = 0,
         num_epoch       = 1,
         debug           = 0,

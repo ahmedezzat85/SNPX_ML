@@ -8,7 +8,7 @@ class MLP(TFNet):
     """
     def __init__(self, data, data_format, num_classes, is_train=True):
         dtype = data.dtype.base_dtype
-        super(MLP, self).__init__(data, data_format, train=is_train, l2_reg=2e-4)
+        super(MLP, self).__init__(dtype, data_format, train=is_train)
         self.net_out = tf.identity(data, name='data')
         self.num_classes = num_classes
 

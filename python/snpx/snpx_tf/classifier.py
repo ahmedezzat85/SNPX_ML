@@ -12,7 +12,6 @@ from tensorflow.python import debug as tf_debug
 
 from .. base_model import SNPXModel
 from . tf_dataset import TFDataset
-import tensorflow.contrib.slim as slim
 
 class SNPXTensorflowClassifier(SNPXModel):
     """ Class for training a deep learning model.
@@ -35,21 +34,23 @@ class SNPXTensorflowClassifier(SNPXModel):
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
         # Initialization
-        self.dtype          = tf.float32 if use_fp16 == False else tf.float16
-        self.debug          = debug
-        self.tf_sess        = None
-        self.eval_op        = None
-        self.train_op       = None
-        self.total_loss     = None
-        self.summary_op     = None
-        self.data_format    = data_format
-        self.global_step_op = None
-        self.data_aug       = data_aug
+        self.dtype       = tf.float32 if use_fp16 == False else tf.float16
+        self.debug       = debug
+        self.tf_sess     = None
+        self.eval_op     = None
+        self.loss        = None
+        
+        self.train_op    = None
+        self.summary_op  = None
+        self.data_format = data_format
+        self.global_step = None
+        self.data_aug    = data_aug
 
     def _load_dataset(self, training=True):
         """ """
-        self.dataset = TFDataset(self.dataset_name, self.batch_size, training, self.dtype,
-                                    self.data_format, self.data_aug)
+        with tf.device('/cpu:0'):
+            self.dataset = TFDataset(self.dataset_name, self.batch_size, training, self.dtype,
+                                        self.data_format, self.data_aug)
 
     def _forward_prop(self, batch, num_classes, training=True):
         """ """
@@ -57,26 +58,39 @@ class SNPXTensorflowClassifier(SNPXModel):
         logits, predictions = self.model_fn(num_classes, batch, self.data_format, is_training=training)
         return logits, predictions
 
-    def _create_train_op(self):
+    def _create_train_op(self, logits):
         """ """
-        # Forward Propagation
-        logits, predictions = self._forward_prop(self.dataset.images, self.dataset.num_classes, True)
-        
+        self.global_step = tf.train.get_or_create_global_step()
+
         # Get the optimizer
+        if self.hp.lr_decay:
+            lr = tf.train.exponential_decay(self.hp.lr, self.global_step, 1000, 0.94, True)
+        else:
+            lr = self.hp.lr
+        tf.summary.scalar("Learning Rate", lr)
+
         optmz = self.hp.optimizer.lower()
         if optmz == 'sgd':
-            opt = tf.train.MomentumOptimizer(self.hp.lr, momentum=0.9)
-        else:
-            opt = tf.train.AdamOptimizer(self.hp.lr)#, epsilon=1e-4)
-        
+            opt = tf.train.MomentumOptimizer(lr, momentum=0.9)
+        elif optmz == 'adam':
+            eps = 1e-8 if self.dtype is tf.float32 else 1e-4
+            opt = tf.train.AdamOptimizer(lr, epsilon=eps)
+        elif optmz == 'rmsprop':
+            eps = 1
+            opt = tf.train.RMSPropOptimizer(lr, epsilon=eps)
+ 
         # Compute the loss and the train_op
-        self.global_step_op = tf.train.get_or_create_global_step()
+        cross_entropy = tf.losses.softmax_cross_entropy(self.dataset.labels, logits) # needs wrapping
+        self.loss = cross_entropy
+        if self.hp.l2_reg > 0:
+            l2_loss = self.hp.l2_reg * tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()])
+            self.loss = self.loss + l2_loss
+        tf.summary.scalar("Cross Entropy", cross_entropy)
+
         update_ops  = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-            cross_entropy = tf.losses.softmax_cross_entropy(self.dataset.labels, logits) # needs wrapping
-            reg_loss = self.hp.l2_reg * tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables()])
-            self.total_loss = cross_entropy + reg_loss
-            self.train_op = opt.minimize(self.total_loss, self.global_step_op)
+            self.train_op = opt.minimize(self.loss, self.global_step)
+
         self._create_eval_op(logits, self.dataset.labels)
 
     def _create_eval_op(self, predictions, labels):
@@ -92,11 +106,12 @@ class SNPXTensorflowClassifier(SNPXModel):
 
         epoch_start_time = self.tick()
         last_log_tick    = epoch_start_time
-        last_step        = self.tf_sess.run(self.global_step_op)
+        last_step        = self.tf_sess.run(self.global_step)
         while True:
             try:
-                _, loss, s, step = self.tf_sess.run([self.train_op, self.total_loss, 
-                                                     self.summary_op, self.global_step_op])
+                feed_dict = {self.training: True}
+                fetches   = [self.loss, self.train_op, self.summary_op, self.global_step]
+                loss, _, s, step = self.tf_sess.run(fetches, feed_dict)
                 self.tb_writer.add_summary(s, step)
                 self.tb_writer.flush()
                 elapsed = self.tick() - last_log_tick
@@ -119,7 +134,8 @@ class SNPXTensorflowClassifier(SNPXModel):
         n = 0
         while True:
             try:
-                batch_acc = self.tf_sess.run(self.eval_op)
+                feed_dict = {self.training: False}
+                batch_acc = self.tf_sess.run(self.eval_op, feed_dict)
                 val_acc += batch_acc
                 n += 1
             except tf.errors.OutOfRangeError:
@@ -144,12 +160,18 @@ class SNPXTensorflowClassifier(SNPXModel):
         """ """
         with tf.Graph().as_default():
             self._load_dataset()
-            self._create_train_op()
+
+            # Forward Propagation
+            self.training = tf.placeholder(tf.bool, name='Train_Flag')
+            logits, _ = self._forward_prop(self.dataset.images, self.dataset.num_classes, self.training)
+        
+            self._create_train_op(logits)
 
             # Create a TF Session
             self.create_tf_session()
+
             # Create Tensorboard stuff
-            self.summary_op = tf.summary.scalar("loss", self.total_loss)
+            self.summary_op = tf.summary.merge_all()
             self.tb_writer  = tf.summary.FileWriter(self.log_dir, graph=self.tf_sess.graph)
 
             if begin_epoch > 0:
@@ -197,7 +219,8 @@ class SNPXTensorflowClassifier(SNPXModel):
             self._load_dataset(training=False)
 
             # Forward Prop
-            predictions = self._forward_prop(self.dataset.images, training=False)
+            self.training = tf.placeholder(tf.bool, name='Train_Flag')
+            predictions, _ = self._forward_prop(self.dataset.images, self.dataset.num_classes, False)
 
             # Create a TF Session
             self.create_tf_session()
