@@ -24,7 +24,6 @@ class SNPXTensorflowClassifier(SNPXModel):
                  use_fp16=False,
                  debug=False,
                  data_aug=False, 
-                 extend_dataset=False,
                  logs_root=None,
                  logs_subdir=None,
                  model_bin_root=None):
@@ -54,7 +53,6 @@ class SNPXTensorflowClassifier(SNPXModel):
 
     def _forward_prop(self, batch, num_classes, training=True):
         """ """
-        predictions = None
         logits, predictions = self.model_fn(num_classes, batch, self.data_format, is_training=training)
         return logits, predictions
 
@@ -76,7 +74,7 @@ class SNPXTensorflowClassifier(SNPXModel):
             eps = 1e-8 if self.dtype is tf.float32 else 1e-4
             opt = tf.train.AdamOptimizer(lr, epsilon=eps)
         elif optmz == 'rmsprop':
-            eps = 1
+            eps = 1e-8
             opt = tf.train.RMSPropOptimizer(lr, epsilon=eps)
  
         # Compute the loss and the train_op

@@ -169,3 +169,8 @@ class SNPXModel(object):
         """
         """
         raise NotImplementedError()
+
+    def close(self):
+        for h in self.logger.handlers[:]:
+            self.logger.removeHandler(h)
+        

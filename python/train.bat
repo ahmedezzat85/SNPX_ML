@@ -3,15 +3,15 @@
 set PYTHON=python3
 set BE=tensorflow
 set DATASET=CIFAR-10
-set NUM_EPOCH=50
+set NUM_EPOCH=20
 set BATCH_SZ=256
 set FP16=0
 set FMT=NCHW
-set model=mini_vgg
-set MODEL_LOG_DIR=net-8
+set model=mlp
+set MODEL_LOG_DIR=mlp-001
 set LR=0.001
-set L2_REG=0
-set DATA_AUG=1
+set L2_REG=0.0001
+set DATA_AUG=0
 set OPT=adam
 set EPOCH=0
 

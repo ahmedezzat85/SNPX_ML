@@ -31,6 +31,6 @@ class MiniVGG(TFNet):
 def snpx_net_create(num_classes, input_data, data_format="NHWC", is_training=True):
     """ """
     net = MiniVGG(input_data, data_format, num_classes, is_training)
-    net_out = net(blocks=[2, 2, 2], filters=[64, 128, 256], strides=[2,2,1])
-    # net_out = net(blocks=[7, 6, 6], filters=[16, 32, 64], strides=[2,2,1], bn=False)
+    #net_out = net(blocks=[2, 2, 2], filters=[64, 128, 256], strides=[2,2,1])
+    net_out = net(blocks=[7, 6, 6], filters=[16, 32, 64], strides=[2,2,1])
     return net_out

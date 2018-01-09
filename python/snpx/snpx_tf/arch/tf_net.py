@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 import tensorflow as tf
-from tensorflow.contrib.layers import separable_conv2d, xavier_initializer
+from tensorflow.contrib.layers import separable_conv2d
 
 TF_ACT_FN = {'relu': tf.nn.relu, 'leaky': tf.nn.leaky_relu}
 
@@ -19,8 +19,7 @@ class TFNet(object):
         self.train       = train
         self.bn_eps      = 1e-5
         self.bn_decay    = 0.997
-        self.kernel_init = xavier_initializer()
-        # tf.variance_scaling_initializer(1.0, 'fan_avg', 'uniform', dtype=data_type)
+        self.kernel_init = tf.variance_scaling_initializer(2.0, 'fan_in', 'uniform', dtype=data_type)
         if data_format.startswith("NC"):
             self.channels_order = 'channels_first'
         else:

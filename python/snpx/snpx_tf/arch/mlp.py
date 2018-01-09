@@ -15,7 +15,7 @@ class MLP(TFNet):
     def __call__(self, hidden=2):
         net_out = self.flatten(self.net_out)
         for k in range(hidden):
-            net_out = self.fully_connected(net_out, 100, add_bn=False, act_fn='relu', name='fc_'+str(k))
+            net_out = self.fully_connected(net_out, 128, add_bn=True, act_fn='relu', name='fc_'+str(k))
         
         net_out = self.Softmax(net_out, self.num_classes)
         return net_out
