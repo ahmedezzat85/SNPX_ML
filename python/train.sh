@@ -1,17 +1,19 @@
-PYTHON=python2
-BE=mxnet
+@echo off
+
+PYTHON=python3
+BE=tensorflow
 DATASET=CIFAR-10
-NUM_EPOCH=100
-BATCH_SZ=100
+NUM_EPOCH=5
+BATCH_SZ=128
 FP16=0
 FMT=NCHW
-model=resnet
-LR=0.01
-DATA_AUG=1
-MODEL_LOG_DIR=resnet-sgd-opt
-OPT=sgd
+model=mlp
+MODEL_LOG_DIR=mlp-001
+LR=0.001
 L2_REG=0.0001
-EPOCH=8
+DATA_AUG=0
+OPT=adam
+EPOCH=0
 
 $PYTHON snpx_train_classifier.py --backend $BE --model-name $model --target-data $DATASET \
 	--data-format $FMT --num-epoch $NUM_EPOCH --batch-size $BATCH_SZ --use-fp16 $FP16     \
