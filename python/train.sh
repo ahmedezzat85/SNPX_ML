@@ -1,5 +1,3 @@
-@echo off
-
 PYTHON=python3
 BE=tensorflow
 DATASET=CIFAR-10
