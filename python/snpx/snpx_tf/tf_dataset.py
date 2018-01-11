@@ -168,6 +168,7 @@ class CIFAR10(object):
         self.train_file  = os.path.join(self.data_dir, cifar10_dict['train_file'])
         self.val_file    = os.path.join(self.data_dir, cifar10_dict['val_file'])
         self.test_file   = os.path.join(self.data_dir, cifar10_dict['test_file'])
+        self.mean_image  = os.path.join(self.data_dir, cifar10_dict['mean_img'])
         
     def _load_CIFAR_batch(self, batch_file):
         """ Read a CIFAR-10 batch file into numpy arrays """
@@ -187,6 +188,7 @@ class CIFAR10(object):
     def write_to_tfrecord(self):
         """ """
         X_Train, Y_Train, X_Val, Y_Val, X_Test, Y_Test = self.get_raw_data()
+        np.mean(X_Train, axis=0).to_file().to_file(self.mean_image)
         images_to_tfrecord(self.train_file, X_Train, Y_Train)
         images_to_tfrecord(self.val_file, X_Val, Y_Val)
         images_to_tfrecord(self.test_file, X_Test, Y_Test)

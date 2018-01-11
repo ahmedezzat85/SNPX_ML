@@ -1,5 +1,8 @@
 mkdir snpx/datasets
 mkdir snpx/datasets/CIFAR-10
-wget "https://drive.google.com/uc?export=download&id=13XDDKM4t60ermEsDEW3r_lwQ40Ya7T_V" -O snpx/datasets/CIFAR-10/CIFAR-10.mean
-wget "https://drive.google.com/uc?export=download&id=1_MvQ44m3kh3H_uq_RxI1yOii9wsbQ3NQ" -O snpx/datasets/CIFAR-10/CIFAR-10_val.tfrecords
-wget "https://drive.google.com/uc?export=download&id=1gD3_yTIJ7onknBRD998QYA8ciIGBCpFA" -O snpx/datasets/CIFAR-10/CIFAR-10_train.tfrecords
+cd snpx/datasets/CIFAR-10
+# wget https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
+tar -xzf cifar-10-python.tar.gz
+cp cifar-10-batches-py/* .
+cd ../../../
+python3 -c "from snpx.snpx_tf.tf_dataset import CIFAR10;import numpy as np;a = CIFAR10();a.write_to_tfrecord()"
