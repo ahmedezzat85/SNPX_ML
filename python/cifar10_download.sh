@@ -1,7 +1,7 @@
 mkdir snpx/datasets
 mkdir snpx/datasets/CIFAR-10
 cd snpx/datasets/CIFAR-10
-# wget https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
+wget https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
 tar -xzf cifar-10-python.tar.gz
 cp cifar-10-batches-py/* .
 cd ../../../
