@@ -42,7 +42,7 @@ class Resnet(TFNet):
             self._resnet_unit(num_blocks, filters[k], (3,3), strides[k], name='stage'+str(k))
 
         net_out = self.pooling(self.net_out, 'avg', (8,8), name="global_pool")
-        # net_out = self.dropout(net_out, 0.5)
+        net_out = self.dropout(net_out, 0.5)
         net_out = self.flatten(net_out)
         net_out = self.Softmax(net_out, self.num_classes)
         return net_out
