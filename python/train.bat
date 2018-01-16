@@ -3,15 +3,15 @@
 set PYTHON=python3
 set BE=tensorflow
 set DATASET=CIFAR-10
-set NUM_EPOCH=20
+set NUM_EPOCH=1
 set BATCH_SZ=256
 set FP16=0
 set FMT=NCHW
-set model=mlp
-set MODEL_LOG_DIR=mlp-001
+set model=resnet-2
+set MODEL_LOG_DIR=adam-001
 set LR=0.001
 set L2_REG=0.0001
-set DATA_AUG=0
+set DATA_AUG=1
 set OPT=adam
 set EPOCH=0
 

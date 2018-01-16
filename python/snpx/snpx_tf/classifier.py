@@ -62,7 +62,8 @@ class SNPXTensorflowClassifier(SNPXModel):
 
         # Get the optimizer
         if self.hp.lr_decay:
-            lr = tf.train.exponential_decay(self.hp.lr, self.global_step, 1000, 0.94, True)
+            lr = tf.train.exponential_decay(self.hp.lr, self.global_step, self.hp.lr_decay, 
+                                                self.hp.lr_step, True)
         else:
             lr = self.hp.lr
         tf.summary.scalar("Learning Rate", lr)
@@ -244,48 +245,20 @@ class SNPXTensorflowClassifier(SNPXModel):
                 in_shape = [1, 3, img_size, img_size]
             else:
                 in_shape = [1, img_size, img_size, 3]
-            input_image = tf.placeholder(self.dtype, in_shape, name='input_image')
 
-            # Forward Prop
-            logits, predictions = self._forward_prop(input_image, num_classes, 
-                                                     predict=True, training=False)
-
-            # Create a TF Session
-            self.create_tf_session()
- 
-            # Load the saved model from a checkpoint
-            chkpt_state = tf.train.get_checkpoint_state(self.model_dir)
-            self.logger.info("Loading Checkpoint " + chkpt_state.model_checkpoint_path)
-            tf_model = tf.train.Saver()
-            tf_model.restore(self.tf_sess, chkpt_state.model_checkpoint_path)
+            input_image = tf.placeholder(self.dtype, in_shape, name='input')
+            logits, predictions = self._forward_prop(input_image, num_classes, training=False)
+            out = tf.identity(predictions, 'output')
 
             saver = tf.train.Saver()
+            self.create_tf_session()
+            self.tb_writer  = tf.summary.FileWriter(self.model_dir, graph=self.tf_sess.graph)
+            chkpt_state = tf.train.get_checkpoint_state(self.model_dir)
+            saver.restore(self.tf_sess, chkpt_state.model_checkpoint_path)
+
             saver.save(self.tf_sess, self.deploy_prfx)
+            self.tb_writer.close()
             self.tf_sess.close()
-
-    # def evaluate_model__(self):
-    #     """ """
-    #     # Load the Evaluation Dataset
-    #     self._load_dataset(training=False)
-
-    #     # Forward Prop
-    #     predictions = self._forward_prop(self.dataset.images, training=False)
-
-    #     # Create a TF Session
-    #     self.create_tf_session()
-
-    #     # Load the saved model from a checkpoint
-    #     chkpt_state = tf.train.get_checkpoint_state(self.model_dir)
-    #     self.logger.info("Loading Checkpoint " + chkpt_state.model_checkpoint_path)
-    #     tf_model = tf.train.Saver()
-    #     tf_model.restore(self.tf_sess, chkpt_state.model_checkpoint_path)
-
-    #     # Perform Model Evaluation
-    #     self._create_eval_op(predictions, self.dataset.labels)
-    #     acc = self._eval_loop()
-
-    #     self.tf_sess.close()
-    #     return acc
 
     def save_tf_graph(self):
         """ """
